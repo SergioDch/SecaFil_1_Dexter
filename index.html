@@ -189,6 +189,13 @@
   }
   .modal .fila2{display:grid; grid-template-columns:2fr 1fr; gap:10px}
 
+  .alarma-fondo{z-index:30; align-items:center; animation:parpadeoFondo 1s infinite}
+  .alarma-fondo .modal{border-radius:18px; border:2px solid var(--bad)}
+  .alarma-fondo h2{color:var(--bad)}
+  .btnfull.peligro{background:var(--bad); color:#fff}
+  @keyframes parpadeoFondo{0%{background:rgba(10,12,16,.55)}50%{background:rgba(214,69,80,.35)}100%{background:rgba(10,12,16,.55)}}
+  @media (prefers-reduced-motion:reduce){ .alarma-fondo{animation:none} }
+
   [hidden]{display:none!important}
 </style>
 </head>
@@ -329,6 +336,14 @@
     <p class="nota" id="confirmarTexto"></p>
     <button class="btnfull" id="btnConfirmarSi">Sí, confirmar</button>
     <button class="btnfull secundario" id="btnConfirmarNo">Cancelar</button>
+  </div>
+</div>
+
+<div class="modal-fondo alarma-fondo" id="modalAlarma" hidden>
+  <div class="modal">
+    <h2>⚠ Alarma activa</h2>
+    <p class="nota">El equipo reporta una condición de alarma (temperatura, humedad fuera de rango, o secado finalizado). Revisá la secadora.</p>
+    <button class="btnfull peligro" id="btnSilenciarAlarmaModal">Silenciar alarma</button>
   </div>
 </div>
 
@@ -558,23 +573,29 @@
     } catch(e){}
   }
 
-  function reflejarPerfilActivo(d){
-    if(!d.ciclo) return;
-    if($('selectorModo').value !== '') return;
+  function sincronizarModoActivo(d){
+    if(!$('modalConfirmar').hidden) return;
+    var activo = document.activeElement;
+    var editando = activo && activo.tagName === 'INPUT' && (activo.closest('#editorPerfil') || activo.closest('#autoCard'));
+    if(editando) return;
+
     if(d.modo_auto){
-      $('selectorModo').value = 'auto';
-      $('editorPerfil').hidden = true;
-      editandoCampo = null;
-      $('autoCard').hidden = false;
-    } else {
-      var idx = NOMBRES_FIJOS.indexOf(d.perfil);
-      if(idx !== -1){
-        $('selectorModo').value = String(idx);
-        perfilSeleccionado = idx;
-        editandoCampo = 'Temp';
-        $('autoCard').hidden = true;
-        renderEditor();
+      if($('selectorModo').value !== 'auto'){
+        $('selectorModo').value = 'auto';
+        $('editorPerfil').hidden = true;
+        editandoCampo = null;
+        $('autoCard').hidden = false;
       }
+      return;
+    }
+    var idx = NOMBRES_FIJOS.indexOf(d.perfil);
+    if(idx === -1) return;
+    if($('selectorModo').value !== String(idx) || perfilSeleccionado !== idx){
+      perfilSeleccionado = idx;
+      $('selectorModo').value = String(idx);
+      editandoCampo = 'Temp';
+      $('autoCard').hidden = true;
+      renderEditor();
     }
   }
 
@@ -613,7 +634,8 @@
     var totalConocido = (perfilInfo && typeof perfilInfo.tiempo === 'number') ? perfilInfo.tiempo : 0;
     ultimo.total = d.modo_auto ? 0 : Math.max(cicloTotalObservado, totalConocido);
     actualizarTiempo();
-    reflejarPerfilActivo(d);
+    actualizarBannerAlarma();
+    sincronizarModoActivo(d);
 
     if(d.modo_auto){
       controlAutoTemp.fijarValorConfirmado(Math.round(d.temp_set));
@@ -645,6 +667,10 @@
     $('btnAlarma').className = 'btnfull alarma' + (ultimo.enAlarma ? ' activa' : '');
   }
 
+  function actualizarBannerAlarma(){
+    $('modalAlarma').hidden = !ultimo.enAlarma;
+  }
+
   function actualizarBarra(restante){
     var fill = $('progresoFill');
     if(!ultimo.ciclo || ultimo.modoAuto || !ultimo.total){
@@ -660,6 +686,7 @@
   function actualizarTiempo(){
     var recienFinalizado = !ultimo.ciclo && finalizadoDesde && (Date.now() - finalizadoDesde < TIEMPO_FIN_A_AMBIENTE_MS);
     actualizarEstadoPill(recienFinalizado);
+    actualizarBannerAlarma();
 
     if(ultimo.modoAuto && ultimo.ciclo){
       $('tiempoTxt').textContent = 'CONTINUO';
@@ -820,9 +847,11 @@
       if(client && client.connected){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: parar'); }
     });
   };
-  $('btnAlarma').onclick = function(){
+  function silenciarAlarma(){
     if(client && client.connected){ client.publish(topics.cmdSilenciar, 'SILENCIAR'); agregarFeed('Comando: silenciar alarma'); }
-  };
+  }
+  $('btnAlarma').onclick = silenciarAlarma;
+  $('btnSilenciarAlarmaModal').onclick = silenciarAlarma;
   $('btnAuto').onclick = function(){
     if(!client || !client.connected) return;
     var enAuto = $('btnAuto').textContent === 'Detener';
