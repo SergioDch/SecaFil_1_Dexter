@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SecaFil Remoto</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#eef0f2; --surface:#ffffff; --surface-2:#f5f6f8; --border:#dde1e6;
+    --text:#1a1f29; --text-muted:#5b6472;
+    --accent:#c65d2e; --accent-ink:#ffffff;
+    --temp:#d84f3e; --hum:#1f8a8c;
+    --good:#1f9d55; --good-bg:#e4f6ec;
+    --warn:#c98a12; --warn-bg:#fbf0d9;
+    --bad:#d64550; --bad-bg:#fbe4e4;
+    --track:#e4e7eb;
+    --shadow:0 1px 2px rgba(20,24,32,.06),0 8px 24px rgba(20,24,32,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#11141c; --surface:#1a1f2b; --surface-2:#212736; --border:#2b3244;
+      --text:#e9ecf3; --text-muted:#8d95a8;
+      --accent:#e8935a; --accent-ink:#1a1206;
+      --temp:#ff7a5c; --hum:#4fd1c5;
+      --good:#34d399; --good-bg:#123024;
+      --warn:#f0b429; --warn-bg:#332608;
+      --bad:#f2545b; --bad-bg:#331416;
+      --track:#2b3244;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#11141c; --surface:#1a1f2b; --surface-2:#212736; --border:#2b3244;
+    --text:#e9ecf3; --text-muted:#8d95a8;
+    --accent:#e8935a; --accent-ink:#1a1206;
+    --temp:#ff7a5c; --hum:#4fd1c5;
+    --good:#34d399; --good-bg:#123024;
+    --warn:#f0b429; --warn-bg:#332608;
+    --bad:#f2545b; --bad-bg:#331416;
+    --track:#2b3244;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 30px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  html{
+    font-size:16px; max-width:100%; overflow-x:hidden;
+    -webkit-text-size-adjust:100%; text-size-adjust:100%;
+  }
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    padding-inline:16px; padding-bottom:calc(100px + env(safe-area-inset-bottom,0px));
+    max-width:520px; margin:0 auto;
+    overflow-x:hidden;
+  }
+  input[type="number"]{-moz-appearance:textfield; appearance:textfield}
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+  h1,h2,h3{font-family:'Big Shoulders Display',system-ui,sans-serif; margin:0; text-wrap:balance}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding-block:18px 10px;
+  }
+  .brand{display:flex; flex-direction:column; gap:2px}
+  .brand h1{font-size:1.5rem; font-weight:800; letter-spacing:.2px}
+  .brand .sub{font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px}
+  .iconbtn{
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--border);
+    background:var(--surface); color:var(--text); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex:none;
+  }
+  .iconbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  .conn{
+    display:flex; align-items:center; gap:8px; font-size:.78rem; color:var(--text-muted);
+    padding:6px 12px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); width:fit-content;
+    margin-bottom:14px;
+  }
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--text-muted); flex:none}
+  .conn.ok .dot{background:var(--good); animation:pulse 1.6s infinite}
+  .conn.bad .dot{background:var(--bad)}
+  .conn.wait .dot{background:var(--warn); animation:pulse 1s infinite}
+  @keyframes pulse{0%{opacity:1}50%{opacity:.3}100%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){ .dot{animation:none!important} }
+
+  .hero{
+    background:var(--surface); border:1px solid var(--border); border-radius:18px;
+    padding:18px; box-shadow:var(--shadow); margin-bottom:14px;
+  }
+  .hero-top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px}
+  .pill{
+    display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:20px;
+    font-size:.78rem; font-weight:600; letter-spacing:.3px;
+  }
+  .pill.on{background:var(--good-bg); color:var(--good)}
+  .pill.off{background:var(--track); color:var(--text-muted)}
+  .pill.alarma{background:var(--bad-bg); color:var(--bad)}
+  .hero-perfil{font-size:1.1rem; font-weight:600}
+  .hero-tiempo{font-size:2.6rem; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:-.5px; line-height:1}
+  .hero-tiempo-label{font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-top:6px}
+
+  .gauges{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px}
+  .gauge{
+    background:var(--surface); border:1px solid var(--border); border-radius:16px;
+    padding:14px; box-shadow:var(--shadow); display:flex; flex-direction:column; align-items:center; gap:6px;
+  }
+  .gauge .label{font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; align-self:flex-start}
+  .gauge svg{width:100%; max-width:150px; height:auto}
+  .gauge .val{font-size:2.1rem; font-weight:700; font-family:'JetBrains Mono',monospace}
+  .gauge .target{font-size:.76rem; color:var(--text-muted)}
+
+  .seccion{margin-bottom:14px}
+  .seccion > .titulo{font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px; padding-inline:2px}
+
+  .selector-modo{
+    width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface);
+    color:var(--text); font-size:.95rem; font-weight:600; margin-bottom:4px;
+  }
+
+  .editor{
+    background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px;
+    box-shadow:var(--shadow); margin-top:10px; display:flex; flex-direction:column; gap:12px;
+  }
+  .campo{display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap}
+  .campo .nombre{font-size:.8rem; color:var(--text-muted); width:50px; flex:none}
+  .stepper{display:flex; align-items:center; gap:6px; flex:1; justify-content:flex-end; min-width:0}
+  .stepper button{
+    width:32px; height:32px; border-radius:9px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text); font-size:1.1rem; cursor:pointer; flex:none; user-select:none;
+  }
+  .stepper button:active{transform:scale(.94)}
+  .stepper input{
+    width:62px; min-width:0; text-align:center; font-family:'JetBrains Mono',monospace; font-size:.95rem; font-weight:600;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:9px; color:var(--text); padding:7px 2px;
+  }
+  .stepper .unidad{font-size:.76rem; color:var(--text-muted); width:20px; flex:none}
+
+  .btnfull{
+    width:100%; padding:12px; border-radius:12px; border:none; background:var(--accent); color:var(--accent-ink);
+    font-weight:700; font-size:.92rem; cursor:pointer; letter-spacing:.2px;
+  }
+  .btnfull:active{transform:scale(.98)}
+  .btnfull.secundario{background:var(--surface-2); color:var(--text); border:1px solid var(--border)}
+
+  .auto-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .auto-row{display:flex; justify-content:space-between; font-size:.85rem}
+  .auto-row .v{font-family:'JetBrains Mono',monospace; font-weight:600}
+  .nota{font-size:.72rem; color:var(--text-muted); line-height:1.4}
+
+  .feed{display:flex; flex-direction:column; gap:6px; max-height:150px; overflow-y:auto}
+  .feed-item{
+    display:flex; gap:8px; font-size:.78rem; padding:8px 10px; background:var(--surface); border:1px solid var(--border);
+    border-radius:10px;
+  }
+  .feed-item time{color:var(--text-muted); font-family:'JetBrains Mono',monospace; flex:none}
+  .feed-empty{font-size:.78rem; color:var(--text-muted); padding:8px 2px}
+
+  .barra{
+    position:fixed; left:0; right:0; bottom:0; padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
+    background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(10px);
+    border-top:1px solid var(--border); display:flex; gap:8px; max-width:552px; margin:0 auto;
+  }
+  .barra button{flex:1}
+  .barra .parar{background:var(--surface-2); color:var(--text); border:1px solid var(--border)}
+  .barra .alarma{background:var(--surface-2); color:var(--text); border:1px solid var(--border)}
+  .barra .alarma.activa{background:var(--bad); color:#fff; border-color:var(--bad)}
+
+  .modal-fondo{
+    position:fixed; inset:0; background:rgba(10,12,16,.55); display:flex; align-items:flex-end; justify-content:center; z-index:20;
+  }
+  .modal{
+    background:var(--surface); border-radius:18px 18px 0 0; padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));
+    width:100%; max-width:520px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow);
+  }
+  .modal h2{font-size:1.2rem}
+  .modal label{font-size:.76rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:4px}
+  .modal input{
+    width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text); font-size:.9rem; margin-bottom:10px; font-family:'JetBrains Mono',monospace;
+  }
+  .modal .fila2{display:grid; grid-template-columns:2fr 1fr; gap:10px}
+
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+
+<header>
+  <div class="brand">
+    <h1>SecaFil Remoto</h1>
+    <span class="sub">Control vía MQTT &middot; DexLab-3D</span>
+  </div>
+  <button class="iconbtn" id="btnConfig" aria-label="Configuración de conexión" title="Configuración">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</header>
+
+<div class="conn wait" id="connPill"><span class="dot"></span><span id="connTxt">Conectando...</span></div>
+
+<div class="hero">
+  <div class="hero-top">
+    <span class="pill off" id="estadoPill">APAGADO</span>
+    <span class="hero-perfil" id="perfilTxt">&mdash;</span>
+  </div>
+  <div class="hero-tiempo mono" id="tiempoTxt">&#8212;&#8212;:&#8212;&#8212;</div>
+  <div class="hero-tiempo-label" id="tiempoLabel">Tiempo restante</div>
+</div>
+
+<div class="gauges">
+  <div class="gauge">
+    <span class="label">Temperatura</span>
+    <svg viewBox="0 0 120 70" aria-hidden="true">
+      <path d="M10,65 A50,50 0 0 1 110,65" fill="none" stroke="var(--track)" stroke-width="10" stroke-linecap="round"/>
+      <path id="arcoTemp" d="M10,65 A50,50 0 0 1 110,65" fill="none" stroke="var(--temp)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+    </svg>
+    <span class="val mono" id="tempVal" style="color:var(--temp)">&#8212;&#176;</span>
+    <span class="target">Objetivo <span class="mono" id="tempSet">&#8212;&#176;</span></span>
+  </div>
+  <div class="gauge">
+    <span class="label">Humedad</span>
+    <svg viewBox="0 0 120 70" aria-hidden="true">
+      <path d="M10,65 A50,50 0 0 1 110,65" fill="none" stroke="var(--track)" stroke-width="10" stroke-linecap="round"/>
+      <path id="arcoHum" d="M10,65 A50,50 0 0 1 110,65" fill="none" stroke="var(--hum)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+    </svg>
+    <span class="val mono" id="humVal" style="color:var(--hum)">&#8212;%</span>
+    <span class="target">Objetivo <span class="mono" id="humSet">&#8212;%</span></span>
+  </div>
+</div>
+
+<div class="seccion">
+  <div class="titulo">Perfil / Modo</div>
+  <select class="selector-modo" id="selectorModo">
+    <option value="" selected>Elegir perfil o modo...</option>
+    <option value="0">PLA/PLA+</option>
+    <option value="1">PETG</option>
+    <option value="2">ASA</option>
+    <option value="3">ABS</option>
+    <option value="4">OTROS</option>
+    <option value="auto">AUTOMATICO</option>
+    <option value="salir">Salir</option>
+  </select>
+
+  <div class="editor" id="editorPerfil" hidden></div>
+
+  <div class="auto-card" id="autoCard" hidden>
+    <div class="campo">
+      <span class="nombre">Temp</span>
+      <div class="stepper" id="stepAutoTemp">
+        <button type="button" data-dir="-1">&minus;</button>
+        <input class="mono" id="autoTempInput" type="number" placeholder="50">
+        <button type="button" data-dir="1">+</button>
+        <span class="unidad">&#176;C</span>
+      </div>
+    </div>
+    <div class="campo">
+      <span class="nombre">Hum</span>
+      <div class="stepper" id="stepAutoHum">
+        <button type="button" data-dir="-1">&minus;</button>
+        <input class="mono" id="autoHumInput" type="number" placeholder="15">
+        <button type="button" data-dir="1">+</button>
+        <span class="unidad">%</span>
+      </div>
+    </div>
+    <button class="btnfull secundario" id="btnAuto">Iniciar automático</button>
+    <button class="btnfull secundario" id="btnSalirAuto">Salir</button>
+  </div>
+</div>
+
+<div class="seccion">
+  <div class="titulo">Actividad reciente</div>
+  <div class="feed" id="feed"><div class="feed-empty">Sin mensajes todavía.</div></div>
+</div>
+
+<div class="barra">
+  <button class="btnfull parar" id="btnParar">Parar</button>
+  <button class="btnfull alarma" id="btnAlarma">Silenciar alarma</button>
+</div>
+
+<div class="modal-fondo" id="modalConfig" hidden>
+  <div class="modal">
+    <h2>Conexión al broker</h2>
+    <div>
+      <label for="cfgHost">Servidor MQTT (WebSocket)</label>
+      <input id="cfgHost" placeholder="xxxxx.s1.eu.hivemq.cloud">
+    </div>
+    <div class="fila2">
+      <div>
+        <label for="cfgDev">ID del equipo</label>
+        <input id="cfgDev" placeholder="1">
+      </div>
+      <div>
+        <label for="cfgPort">Puerto WSS</label>
+        <input id="cfgPort" placeholder="8884">
+      </div>
+    </div>
+    <div>
+      <label for="cfgUser">Usuario MQTT</label>
+      <input id="cfgUser" autocomplete="off">
+    </div>
+    <div>
+      <label for="cfgPass">Contraseña MQTT</label>
+      <input id="cfgPass" type="password" autocomplete="off">
+    </div>
+    <p class="nota">Estos datos se guardan solo en este navegador (nunca se envían a ningún lado salvo directo al broker). No los compartas si prestás el link de esta página.</p>
+    <button class="btnfull" id="btnGuardarCfg">Guardar y conectar</button>
+    <button class="btnfull secundario" id="btnCerrarCfg">Cancelar</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js" onerror="document.getElementById('connTxt').textContent='No se pudo descargar la libreria MQTT (revisa tu conexion)'; document.getElementById('connPill').className='conn bad';"></script>
+<script>
+(function(){
+  "use strict";
+
+  var LS_KEY = 'secafil_remoto_cfg_v1';
+  var NOMBRES_FIJOS = ['PLA/PLA+','PETG','ASA','ABS','OTROS'];
+  var CLAVES_MQTT = ['PLA','PETG','ASA','ABS','OTROS'];
+  var RANGOS = { Temp:[10,90], Hum:[5,60], Tiempo:[60,86400] };
+
+  function cargarConfig(){
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if(raw) return JSON.parse(raw);
+    } catch(e){}
+    return { host:'5dab8a9752864256b9b112a6465de82a.s1.eu.hivemq.cloud', port:8884, dev:'1', user:'', pass:'' };
+  }
+  function guardarConfigLS(cfg){
+    try { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); } catch(e){}
+  }
+
+  var cfg = cargarConfig();
+  var client = null;
+  var topics = null;
+  var perfiles = NOMBRES_FIJOS.map(function(n){ return {nombre:n, temp:0, hum:0, tiempo:0}; });
+  var perfilesRecibidos = false;
+  var perfilSeleccionado = 0;
+  var editandoCampo = null;
+  var ultimo = { tiempo:0, recibidoEn:0, ciclo:0, modoAuto:0 };
+
+  function $(id){ return document.getElementById(id); }
+
+  function construirTopicos(dev){
+    var base = 'secafil6/'+dev+'/';
+    return {
+      telemetria: base+'telemetria',
+      perfiles: base+'perfiles',
+      alertas: base+'alertas',
+      ack: base+'ack',
+      cmdAccion: base+'cmd/accion',
+      cmdTemp: base+'cmd/set_temp',
+      cmdHume: base+'cmd/set_hume',
+      cmdPerfil: base+'cmd/perfil',
+      cmdTiempo: base+'cmd/set_tiempo',
+      cmdAutoTemp: base+'cmd/set_auto_temp',
+      cmdAutoHume: base+'cmd/set_auto_hume',
+      cmdSilenciar: base+'cmd/silenciar'
+    };
+  }
+
+  function setConn(estado, texto){
+    var pill = $('connPill');
+    pill.className = 'conn ' + estado;
+    $('connTxt').textContent = texto;
+  }
+
+  function agregarFeed(texto){
+    var feed = $('feed');
+    var vacio = feed.querySelector('.feed-empty');
+    if(vacio) vacio.remove();
+    var item = document.createElement('div');
+    item.className = 'feed-item';
+    var hora = new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    item.innerHTML = '<time>'+hora+'</time><span></span>';
+    item.querySelector('span').textContent = texto;
+    feed.prepend(item);
+    while(feed.children.length > 12) feed.removeChild(feed.lastChild);
+  }
+
+  function conectar(){
+    if(client){ try{ client.end(true); }catch(e){} }
+    topics = construirTopicos(cfg.dev || '1');
+    if(!cfg.host || !cfg.user){
+      setConn('bad', 'Configurá el broker');
+      abrirConfig();
+      return;
+    }
+    setConn('wait', 'Conectando...');
+    if(typeof mqtt === 'undefined'){
+      setConn('bad', 'No cargo la libreria MQTT (revisa tu conexion a internet)');
+      return;
+    }
+    var url = 'wss://' + cfg.host + ':' + (cfg.port || 8884) + '/mqtt';
+    try {
+      client = mqtt.connect(url, {
+        username: cfg.user,
+        password: cfg.pass,
+        clientId: 'secafil_dash_' + Math.random().toString(16).slice(2),
+        reconnectPeriod: 4000,
+        connectTimeout: 8000,
+        clean: true
+      });
+    } catch(e){
+      setConn('bad', 'No se pudo conectar: ' + (e && e.message ? e.message : e));
+      return;
+    }
+
+    client.on('connect', function(){
+      setConn('ok', 'En línea');
+      [topics.telemetria, topics.perfiles, topics.alertas, topics.ack].forEach(function(t){
+        client.subscribe(t);
+      });
+    });
+    client.on('reconnect', function(){ setConn('wait', 'Reconectando...'); });
+    client.on('close', function(){ setConn('bad', 'Sin conexión'); });
+    client.on('error', function(err){
+      var msg = (err && err.message) ? err.message : String(err || 'desconocido');
+      setConn('bad', 'Error: ' + msg);
+      agregarFeed('Error de conexión: ' + msg);
+    });
+
+    client.on('message', function(topic, payload){
+      var texto = payload.toString();
+      if(topic === topics.telemetria) manejarTelemetria(texto);
+      else if(topic === topics.perfiles) manejarPerfiles(texto);
+      else if(topic === topics.alertas) agregarFeed('[ALERTA] ' + texto);
+      else if(topic === topics.ack) agregarFeed(texto);
+    });
+  }
+
+  function manejarPerfiles(texto){
+    try {
+      var lista = JSON.parse(texto);
+      if(Array.isArray(lista) && lista.length === 5){
+        perfiles = lista;
+        perfilesRecibidos = true;
+        if(editandoCampo) renderEditor();
+      }
+    } catch(e){}
+  }
+
+  function manejarTelemetria(texto){
+    var d;
+    try { d = JSON.parse(texto); } catch(e){ return; }
+
+    var enAlarma = d.alarma !== 'NINGUNA';
+    var pill = $('estadoPill');
+    if(enAlarma){ pill.className='pill alarma'; pill.textContent='ALARMA'; }
+    else if(d.ciclo){ pill.className='pill on'; pill.textContent='ENCENDIDO'; }
+    else { pill.className='pill off'; pill.textContent='APAGADO'; }
+    $('btnAlarma').className = 'btnfull alarma' + (enAlarma ? ' activa' : '');
+
+    $('perfilTxt').textContent = d.perfil || '--';
+
+    $('tempVal').textContent = Math.round(d.temp_act) + 'C';
+    $('humVal').textContent = Math.round(d.hume_act) + '%';
+    $('tempSet').textContent = Math.round(d.temp_set) + 'C';
+    $('humSet').textContent = Math.round(d.hume_set) + '%';
+    pintarArco('arcoTemp', d.temp_act, 0, 100);
+    pintarArco('arcoHum', d.hume_act, 0, 100);
+
+    ultimo.tiempo = d.tiempo || 0;
+    ultimo.recibidoEn = Date.now();
+    ultimo.ciclo = d.ciclo ? 1 : 0;
+    ultimo.modoAuto = d.modo_auto ? 1 : 0;
+    actualizarTiempo();
+
+    if(d.modo_auto){
+      if(document.activeElement !== $('autoTempInput')) $('autoTempInput').value = Math.round(d.temp_set);
+      if(document.activeElement !== $('autoHumInput')) $('autoHumInput').value = Math.round(d.hume_set);
+    }
+    $('btnAuto').textContent = (d.modo_auto && d.ciclo) ? 'Detener' : 'Iniciar automático';
+  }
+
+  function pintarArco(id, valor, min, max){
+    var el = $(id);
+    var pct = Math.max(0, Math.min(1, (valor - min) / (max - min)));
+    var largo = 157;
+    el.setAttribute('stroke-dashoffset', String(largo * (1 - pct)));
+  }
+
+  function fmtTiempo(s){
+    s = Math.max(0, Math.floor(s));
+    var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), seg = s%60;
+    var mm = String(m).padStart(2,'0'), ss = String(seg).padStart(2,'0');
+    return h>0 ? (h+':'+mm+':'+ss) : (mm+':'+ss);
+  }
+
+  function actualizarTiempo(){
+    if(ultimo.modoAuto && ultimo.ciclo){
+      $('tiempoTxt').textContent = 'CONTINUO';
+      $('tiempoLabel').textContent = 'Modo automático';
+      return;
+    }
+    if(!ultimo.ciclo){
+      $('tiempoTxt').textContent = '--:--';
+      $('tiempoLabel').textContent = 'Sin ciclo activo';
+      return;
+    }
+    var transcurrido = Math.floor((Date.now() - ultimo.recibidoEn)/1000);
+    var restante = Math.max(0, ultimo.tiempo - transcurrido);
+    $('tiempoTxt').textContent = fmtTiempo(restante);
+    $('tiempoLabel').textContent = 'Tiempo restante';
+  }
+  setInterval(actualizarTiempo, 1000);
+
+  function salirDeEdicion(){
+    $('editorPerfil').hidden = true;
+    $('autoCard').hidden = true;
+    editandoCampo = null;
+    $('selectorModo').value = '';
+  }
+
+  $('selectorModo').addEventListener('change', function(e){
+    var v = e.target.value;
+    if(v === '' ){
+      salirDeEdicion();
+    } else if(v === 'salir'){
+      salirDeEdicion();
+    } else if(v === 'auto'){
+      $('editorPerfil').hidden = true;
+      editandoCampo = null;
+      $('autoCard').hidden = false;
+    } else {
+      var i = parseInt(v, 10);
+      perfilSeleccionado = i;
+      editandoCampo = 'Temp';
+      $('autoCard').hidden = true;
+      if(client && client.connected){
+        client.publish(topics.cmdPerfil, CLAVES_MQTT[i]);
+      }
+      renderEditor();
+    }
+  });
+
+  function pasoDe(campo){ return campo === 'Tiempo' ? 60 : 1; }
+
+  function renderEditor(){
+    var ed = $('editorPerfil');
+    ed.hidden = false;
+    var p = perfiles[perfilSeleccionado];
+    var campos = [
+      {campo:'Temp', valor:Math.round(p.temp), unidad:'C', topic:topics.cmdTemp},
+      {campo:'Hum', valor:Math.round(p.hum), unidad:'%', topic:topics.cmdHume},
+      {campo:'Tiempo', valor:p.tiempo, unidad:'s', topic:topics.cmdTiempo}
+    ];
+    ed.innerHTML = '';
+    campos.forEach(function(c){
+      var fila = document.createElement('div');
+      fila.className = 'campo';
+      fila.innerHTML =
+        '<span class="nombre">'+c.campo+'</span>' +
+        '<div class="stepper">' +
+          '<button type="button" data-dir="-1">&minus;</button>' +
+          '<input class="mono" type="number" value="'+c.valor+'">' +
+          '<button type="button" data-dir="1">+</button>' +
+          '<span class="unidad">'+c.unidad+'</span>' +
+        '</div>';
+      var input = fila.querySelector('input');
+      var rango = RANGOS[c.campo];
+      function enviar(v){
+        v = Math.max(rango[0], Math.min(rango[1], Math.round(v)));
+        input.value = v;
+        if(client && client.connected){ client.publish(c.topic, String(v)); }
+      }
+      fila.querySelectorAll('button').forEach(function(btn){
+        var dir = parseInt(btn.dataset.dir, 10);
+        var intervalo=null, timeout=null;
+        function paso(){ enviar(parseFloat(input.value) + dir*pasoDe(c.campo)); }
+        function iniciar(){
+          detener();
+          paso();
+          timeout = setTimeout(function(){ intervalo = setInterval(paso, 130); }, 400);
+        }
+        function detener(){ clearTimeout(timeout); clearInterval(intervalo); timeout=null; intervalo=null; }
+        btn.addEventListener('mousedown', iniciar);
+        btn.addEventListener('touchstart', function(e){ e.preventDefault(); iniciar(); });
+        ['mouseup','mouseleave','touchend','touchcancel'].forEach(function(ev){ btn.addEventListener(ev, detener); });
+      });
+      input.addEventListener('change', function(){ enviar(parseFloat(input.value)); });
+      ed.appendChild(fila);
+    });
+
+    var btnIniciar = document.createElement('button');
+    btnIniciar.className = 'btnfull';
+    btnIniciar.textContent = 'Iniciar ' + p.nombre;
+    btnIniciar.onclick = function(){
+      if(client && client.connected){ client.publish(topics.cmdAccion, 'START'); agregarFeed('Comando: iniciar ' + p.nombre); }
+    };
+    ed.appendChild(btnIniciar);
+
+    var btnSalirEditor = document.createElement('button');
+    btnSalirEditor.className = 'btnfull secundario';
+    btnSalirEditor.textContent = 'Salir';
+    btnSalirEditor.onclick = salirDeEdicion;
+    ed.appendChild(btnSalirEditor);
+  }
+
+  $('btnParar').onclick = function(){
+    if(client && client.connected){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: parar'); }
+  };
+  $('btnAlarma').onclick = function(){
+    if(client && client.connected){ client.publish(topics.cmdSilenciar, 'SILENCIAR'); agregarFeed('Comando: silenciar alarma'); }
+  };
+  $('btnAuto').onclick = function(){
+    if(!client || !client.connected) return;
+    var enAuto = $('btnAuto').textContent === 'Detener';
+    if(enAuto){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: detener automático'); }
+    else { client.publish(topics.cmdAccion, 'START_AUTO'); agregarFeed('Comando: iniciar automático'); }
+  };
+  $('btnSalirAuto').onclick = salirDeEdicion;
+
+  function cablearStepperAuto(idInput, idContenedor, obtenerTopic, rango, paso, defecto){
+    var input = $(idInput);
+    var cont = $(idContenedor);
+    function enviar(v){
+      if(isNaN(v)) v = defecto;
+      v = Math.max(rango[0], Math.min(rango[1], Math.round(v)));
+      input.value = v;
+      if(client && client.connected){ client.publish(obtenerTopic(), String(v)); }
+    }
+    cont.querySelectorAll('button').forEach(function(btn){
+      var dir = parseInt(btn.dataset.dir, 10);
+      var intervalo=null, timeout=null;
+      function pasoFn(){
+        var base = parseFloat(input.value);
+        if(isNaN(base)) base = defecto;
+        enviar(base + dir*paso);
+      }
+      function iniciar(){ detener(); pasoFn(); timeout=setTimeout(function(){ intervalo=setInterval(pasoFn,130); },400); }
+      function detener(){ clearTimeout(timeout); clearInterval(intervalo); timeout=null; intervalo=null; }
+      btn.addEventListener('mousedown', iniciar);
+      btn.addEventListener('touchstart', function(e){ e.preventDefault(); iniciar(); });
+      ['mouseup','mouseleave','touchend','touchcancel'].forEach(function(ev){ btn.addEventListener(ev, detener); });
+    });
+    input.addEventListener('change', function(){ enviar(parseFloat(input.value)); });
+  }
+  cablearStepperAuto('autoTempInput', 'stepAutoTemp', function(){ return topics.cmdAutoTemp; }, [10,90], 1, 50);
+  cablearStepperAuto('autoHumInput', 'stepAutoHum', function(){ return topics.cmdAutoHume; }, [5,60], 1, 15);
+
+  function abrirConfig(){
+    $('cfgHost').value = cfg.host || '';
+    $('cfgDev').value = cfg.dev || '1';
+    $('cfgPort').value = cfg.port || 8884;
+    $('cfgUser').value = cfg.user || '';
+    $('cfgPass').value = cfg.pass || '';
+    $('modalConfig').hidden = false;
+  }
+  $('btnConfig').onclick = abrirConfig;
+  $('btnCerrarCfg').onclick = function(){ $('modalConfig').hidden = true; };
+  $('btnGuardarCfg').onclick = function(){
+    cfg = {
+      host: $('cfgHost').value.trim(),
+      dev: $('cfgDev').value.trim() || '1',
+      port: parseInt($('cfgPort').value, 10) || 8884,
+      user: $('cfgUser').value.trim(),
+      pass: $('cfgPass').value.trim()
+    };
+    guardarConfigLS(cfg);
+    $('modalConfig').hidden = true;
+    conectar();
+  };
+
+  actualizarTiempo();
+  if(cfg.user){ conectar(); } else { setConn('bad','Sin configurar'); abrirConfig(); }
+})();
+</script>
+
+</body>
+</html>
