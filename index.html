@@ -396,6 +396,8 @@
   var ultimoCicloVisto = 0;
   var cicloTotalObservado = 0;
   var finalizadoDesde = 0;
+  var ultimoMensajeEn = 0;
+  var UMBRAL_SIN_DATOS_MS = 12000;
   var TIEMPO_FIN_A_AMBIENTE_MS = 20000;
 
   function $(id){ return document.getElementById(id); }
@@ -528,6 +530,7 @@
     });
 
     client.on('message', function(topic, payload){
+      ultimoMensajeEn = Date.now();
       var texto = payload.toString();
       if(topic === topics.telemetria) manejarTelemetria(texto);
       else if(topic === topics.perfiles) manejarPerfiles(texto);
@@ -535,6 +538,13 @@
       else if(topic === topics.ack) agregarFeed(texto);
     });
   }
+
+  setInterval(function(){
+    if(client && client.connected && ultimoMensajeEn && (Date.now() - ultimoMensajeEn > UMBRAL_SIN_DATOS_MS)){
+      setConn('wait', 'Sin datos recientes, reconectando...');
+      conectar();
+    }
+  }, 5000);
 
   function manejarPerfiles(texto){
     try {
@@ -595,7 +605,10 @@
     ultimo.recibidoEn = Date.now();
     ultimo.ciclo = d.ciclo ? 1 : 0;
     ultimo.modoAuto = d.modo_auto ? 1 : 0;
+    var alarmaAnterior = ultimo.enAlarma;
     ultimo.enAlarma = d.alarma !== 'NINGUNA';
+    if(ultimo.enAlarma && !alarmaAnterior) agregarFeed('[ALARMA] Se activó una alarma en el equipo.');
+    else if(!ultimo.enAlarma && alarmaAnterior) agregarFeed('[ALARMA] La alarma se desactivó.');
     var perfilInfo = perfiles.find(function(p){ return p.nombre === d.perfil; });
     var totalConocido = (perfilInfo && typeof perfilInfo.tiempo === 'number') ? perfilInfo.tiempo : 0;
     ultimo.total = d.modo_auto ? 0 : Math.max(cicloTotalObservado, totalConocido);
