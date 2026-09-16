@@ -101,6 +101,9 @@
   .hero-perfil{font-size:1.1rem; font-weight:600}
   .hero-tiempo{font-size:2.6rem; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:-.5px; line-height:1}
   .hero-tiempo-label{font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-top:6px}
+  .progreso-track{width:100%; height:7px; background:var(--track); border-radius:4px; overflow:hidden}
+  .progreso-fill{height:100%; width:0%; background:transparent; transition:width 1s linear}
+  .pill.finalizo{background:var(--warn-bg); color:var(--warn)}
 
   .gauges{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px}
   .gauge{
@@ -209,6 +212,7 @@
     <span class="pill off" id="estadoPill">APAGADO</span>
     <span class="hero-perfil" id="perfilTxt">&mdash;</span>
   </div>
+  <div class="progreso-track"><div class="progreso-fill" id="progresoFill"></div></div>
   <div class="hero-tiempo mono" id="tiempoTxt">&#8212;&#8212;:&#8212;&#8212;</div>
   <div class="hero-tiempo-label" id="tiempoLabel">Tiempo restante</div>
 </div>
@@ -217,8 +221,8 @@
   <div class="gauge">
     <span class="label">Temperatura</span>
     <svg viewBox="0 0 120 70" aria-hidden="true">
-      <path d="M10,65 A50,50 0 0 1 110,65" fill="none" stroke="var(--track)" stroke-width="10" stroke-linecap="round"/>
-      <path id="arcoTemp" d="M10,65 A50,50 0 0 1 110,65" fill="none" stroke="var(--temp)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+      <path d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--track)" stroke-width="10" stroke-linecap="round"/>
+      <path id="arcoTemp" d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--temp)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
     </svg>
     <span class="val mono" id="tempVal" style="color:var(--temp)">&#8212;&#176;</span>
     <span class="target">Objetivo <span class="mono" id="tempSet">&#8212;&#176;</span></span>
@@ -226,8 +230,8 @@
   <div class="gauge">
     <span class="label">Humedad</span>
     <svg viewBox="0 0 120 70" aria-hidden="true">
-      <path d="M10,65 A50,50 0 0 1 110,65" fill="none" stroke="var(--track)" stroke-width="10" stroke-linecap="round"/>
-      <path id="arcoHum" d="M10,65 A50,50 0 0 1 110,65" fill="none" stroke="var(--hum)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+      <path d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--track)" stroke-width="10" stroke-linecap="round"/>
+      <path id="arcoHum" d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--hum)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
     </svg>
     <span class="val mono" id="humVal" style="color:var(--hum)">&#8212;%</span>
     <span class="target">Objetivo <span class="mono" id="humSet">&#8212;%</span></span>
@@ -342,7 +346,10 @@
   var perfilesRecibidos = false;
   var perfilSeleccionado = 0;
   var editandoCampo = null;
-  var ultimo = { tiempo:0, recibidoEn:0, ciclo:0, modoAuto:0 };
+  var ultimo = { tiempo:0, recibidoEn:0, ciclo:0, modoAuto:0, total:0, enAlarma:false };
+  var ultimoCicloVisto = 0;
+  var finalizadoDesde = 0;
+  var TIEMPO_FIN_A_AMBIENTE_MS = 20000;
 
   function $(id){ return document.getElementById(id); }
 
@@ -449,12 +456,8 @@
     var d;
     try { d = JSON.parse(texto); } catch(e){ return; }
 
-    var enAlarma = d.alarma !== 'NINGUNA';
-    var pill = $('estadoPill');
-    if(enAlarma){ pill.className='pill alarma'; pill.textContent='ALARMA'; }
-    else if(d.ciclo){ pill.className='pill on'; pill.textContent='ENCENDIDO'; }
-    else { pill.className='pill off'; pill.textContent='APAGADO'; }
-    $('btnAlarma').className = 'btnfull alarma' + (enAlarma ? ' activa' : '');
+    if(ultimoCicloVisto === 1 && !d.ciclo){ finalizadoDesde = Date.now(); }
+    ultimoCicloVisto = d.ciclo ? 1 : 0;
 
     $('perfilTxt').textContent = d.perfil || '--';
 
@@ -469,6 +472,9 @@
     ultimo.recibidoEn = Date.now();
     ultimo.ciclo = d.ciclo ? 1 : 0;
     ultimo.modoAuto = d.modo_auto ? 1 : 0;
+    ultimo.enAlarma = d.alarma !== 'NINGUNA';
+    var perfilInfo = perfiles.find(function(p){ return p.nombre === d.perfil; });
+    ultimo.total = (perfilInfo && !d.modo_auto) ? perfilInfo.tiempo : 0;
     actualizarTiempo();
 
     if(d.modo_auto){
@@ -492,20 +498,47 @@
     return h>0 ? (h+':'+mm+':'+ss) : (mm+':'+ss);
   }
 
+  function actualizarEstadoPill(recienFinalizado){
+    var pill = $('estadoPill');
+    if(ultimo.enAlarma){ pill.className='pill alarma'; pill.textContent='ALARMA'; }
+    else if(ultimo.ciclo){ pill.className='pill on'; pill.textContent='ENCENDIDO'; }
+    else if(recienFinalizado){ pill.className='pill finalizo'; pill.textContent='FINALIZO'; }
+    else { pill.className='pill off'; pill.textContent='APAGADO'; }
+    $('btnAlarma').className = 'btnfull alarma' + (ultimo.enAlarma ? ' activa' : '');
+  }
+
+  function actualizarBarra(restante){
+    var fill = $('progresoFill');
+    if(!ultimo.ciclo || ultimo.modoAuto || !ultimo.total){
+      fill.style.width = '0%';
+      fill.style.background = 'transparent';
+      return;
+    }
+    var pct = Math.max(0, Math.min(100, 100 - (restante / ultimo.total * 100)));
+    fill.style.width = pct + '%';
+    fill.style.background = 'var(--temp)';
+  }
+
   function actualizarTiempo(){
+    var recienFinalizado = !ultimo.ciclo && finalizadoDesde && (Date.now() - finalizadoDesde < TIEMPO_FIN_A_AMBIENTE_MS);
+    actualizarEstadoPill(recienFinalizado);
+
     if(ultimo.modoAuto && ultimo.ciclo){
       $('tiempoTxt').textContent = 'CONTINUO';
       $('tiempoLabel').textContent = 'Modo automático';
+      actualizarBarra(0);
       return;
     }
     if(!ultimo.ciclo){
       $('tiempoTxt').textContent = '--:--';
-      $('tiempoLabel').textContent = 'Sin ciclo activo';
+      $('tiempoLabel').textContent = recienFinalizado ? 'Secado finalizado' : 'Sin ciclo activo';
+      actualizarBarra(0);
       return;
     }
     var transcurrido = Math.floor((Date.now() - ultimo.recibidoEn)/1000);
     var restante = Math.max(0, ultimo.tiempo - transcurrido);
     $('tiempoTxt').textContent = fmtTiempo(restante);
+    actualizarBarra(restante);
     $('tiempoLabel').textContent = 'Tiempo restante';
   }
   setInterval(actualizarTiempo, 1000);
@@ -558,13 +591,14 @@
         '<span class="nombre">'+c.campo+'</span>' +
         '<div class="stepper">' +
           '<button type="button" data-dir="-1">&minus;</button>' +
-          '<input class="mono" type="number" value="'+c.valor+'">' +
+          '<input class="mono" type="number" placeholder="'+c.valor+'">' +
           '<button type="button" data-dir="1">+</button>' +
           '<span class="unidad">'+c.unidad+'</span>' +
         '</div>';
       var input = fila.querySelector('input');
       var rango = RANGOS[c.campo];
       function enviar(v){
+        if(isNaN(v)) v = c.valor;
         v = Math.max(rango[0], Math.min(rango[1], Math.round(v)));
         input.value = v;
         if(client && client.connected){ client.publish(c.topic, String(v)); }
@@ -572,7 +606,11 @@
       fila.querySelectorAll('button').forEach(function(btn){
         var dir = parseInt(btn.dataset.dir, 10);
         var intervalo=null, timeout=null;
-        function paso(){ enviar(parseFloat(input.value) + dir*pasoDe(c.campo)); }
+        function paso(){
+          var base = parseFloat(input.value);
+          if(isNaN(base)) base = c.valor;
+          enviar(base + dir*pasoDe(c.campo));
+        }
         function iniciar(){
           detener();
           paso();
