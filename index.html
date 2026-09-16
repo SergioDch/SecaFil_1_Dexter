@@ -581,21 +581,12 @@
     if(editando) return;
 
     if(d.modo_auto){
-      if($('selectorModo').value !== 'auto'){
-        $('selectorModo').value = 'auto';
-        $('editorPerfil').hidden = true;
-        editandoCampo = null;
-        $('autoCard').hidden = false;
-      }
+      if($('selectorModo').value === 'auto' && !$('autoCard').hidden) return;
       return;
     }
     var idx = NOMBRES_FIJOS.indexOf(d.perfil);
     if(idx === -1) return;
-    if($('selectorModo').value !== String(idx) || perfilSeleccionado !== idx){
-      perfilSeleccionado = idx;
-      $('selectorModo').value = String(idx);
-      editandoCampo = 'Temp';
-      $('autoCard').hidden = true;
+    if(!$('editorPerfil').hidden && perfilSeleccionado === idx){
       renderEditor();
     }
   }
