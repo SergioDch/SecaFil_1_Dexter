@@ -409,7 +409,7 @@
   var perfilesRecibidos = !!perfilesCache;
   var perfilSeleccionado = 0;
   var editandoCampo = null;
-  var ultimo = { tiempo:0, recibidoEn:0, ciclo:0, modoAuto:0, total:0, enAlarma:false };
+  var ultimo = { tiempo:0, recibidoEn:0, ciclo:0, modoAuto:0, total:0, enAlarma:false, causaAlarma:null };
   var ultimoCicloVisto = 0;
   var cicloTotalObservado = 0;
   var finalizadoDesde = 0;
@@ -622,8 +622,9 @@
     ultimo.modoAuto = d.modo_auto ? 1 : 0;
     var alarmaAnterior = ultimo.enAlarma;
     ultimo.enAlarma = d.alarma !== 'NINGUNA';
-    if(ultimo.enAlarma && !alarmaAnterior) agregarFeed('[ALARMA] Se activó una alarma en el equipo.');
-    else if(!ultimo.enAlarma && alarmaAnterior) agregarFeed('[ALARMA] La alarma se desactivó.');
+    if(ultimo.enAlarma && !alarmaAnterior) agregarFeed('[ALARMA] Se activó: ' + (d.causa_alarma || 'condición no especificada') + '.');
+    else if(!ultimo.enAlarma && alarmaAnterior) agregarFeed('[ALARMA] Se desactivó (' + (ultimo.causaAlarma || 'condición anterior') + ').');
+    if(ultimo.enAlarma) ultimo.causaAlarma = d.causa_alarma || null;
     var perfilInfo = perfiles.find(function(p){ return p.nombre === d.perfil; });
     var totalConocido = (perfilInfo && typeof perfilInfo.tiempo === 'number') ? perfilInfo.tiempo : 0;
     ultimo.total = d.modo_auto ? 0 : Math.max(cicloTotalObservado, totalConocido);
