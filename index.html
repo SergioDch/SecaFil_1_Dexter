@@ -240,13 +240,13 @@
       <path d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--track)" stroke-width="10" stroke-linecap="round"/>
       <path id="arcoTemp" d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--temp)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
     </svg>
-    <span class="val mono" id="tempVal" style="color:var(--temp)">&#8212;&#176;</span>
+    <span class="val mono" id="tempVal" style="color:var(--temp)">&#8212;&#176;C</span>
   </div>
   <div class="gauge gauge-objetivos">
     <span class="label">Objetivo</span>
     <div class="objetivo-fila">
       <span class="mini-label">Temp</span>
-      <span class="objetivo-val mono" id="tempSet" style="color:var(--temp)">&#8212;&#176;</span>
+      <span class="objetivo-val mono" id="tempSet" style="color:var(--temp)">&#8212;&#176;C</span>
     </div>
     <div class="objetivo-fila">
       <span class="mini-label">Hum</span>
@@ -622,9 +622,9 @@
 
     $('perfilTxt').textContent = d.perfil || '--';
 
-    $('tempVal').textContent = Math.round(d.temp_act) + 'C';
+    $('tempVal').textContent = Math.round(d.temp_act) + '°C';
     $('humVal').textContent = Math.round(d.hume_act) + '%';
-    $('tempSet').textContent = Math.round(d.temp_set) + 'C';
+    $('tempSet').textContent = Math.round(d.temp_set) + '°C';
     $('humSet').textContent = Math.round(d.hume_set) + '%';
     pintarArco('arcoTemp', d.temp_act, 0, 100);
     pintarArco('arcoHum', d.hume_act, 0, 100);
