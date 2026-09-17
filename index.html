@@ -838,10 +838,8 @@
     btnIniciar.className = 'btnfull';
     btnIniciar.textContent = 'Iniciar ' + p.nombre;
     btnIniciar.onclick = function(){
-      pedirConfirmacion('¿Iniciar el secado con el perfil ' + p.nombre + '?', function(){
-        if(client && client.connected){ client.publish(topics.cmdAccion, 'START'); agregarFeed('Comando: iniciar ' + p.nombre); }
-        salirDeEdicion();
-      });
+      if(client && client.connected){ client.publish(topics.cmdAccion, 'START'); agregarFeed('Comando: iniciar ' + p.nombre); }
+      salirDeEdicion();
     };
     ed.appendChild(btnIniciar);
 
