@@ -105,7 +105,7 @@
   .progreso-fill{height:100%; width:0%; background:transparent; transition:width 1s linear}
   .pill.finalizo{background:var(--warn-bg); color:var(--warn)}
 
-  .gauges{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px}
+  .gauges{display:grid; grid-template-columns:1fr 1.1fr 1fr; gap:12px; margin-bottom:14px}
   .gauge{
     background:var(--surface); border:1px solid var(--border); border-radius:16px;
     padding:14px; box-shadow:var(--shadow); display:flex; flex-direction:column; align-items:center; gap:6px;
@@ -113,7 +113,10 @@
   .gauge .label{font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; align-self:flex-start}
   .gauge svg{width:100%; max-width:150px; height:auto}
   .gauge .val{font-size:2.1rem; font-weight:700; font-family:'JetBrains Mono',monospace}
-  .gauge .target{font-size:.76rem; color:var(--text-muted)}
+  .gauge-objetivos{justify-content:center; gap:16px}
+  .gauge-objetivos .objetivo-fila{display:flex; flex-direction:column; align-items:center; gap:2px}
+  .gauge-objetivos .mini-label{font-size:.62rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px}
+  .gauge-objetivos .objetivo-val{font-size:1.8rem; font-weight:700; font-family:'JetBrains Mono',monospace}
 
   .seccion{margin-bottom:14px}
   .seccion > .titulo{font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px; padding-inline:2px}
@@ -237,7 +240,17 @@
       <path id="arcoTemp" d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--temp)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
     </svg>
     <span class="val mono" id="tempVal" style="color:var(--temp)">&#8212;&#176;</span>
-    <span class="target">Objetivo <span class="mono" id="tempSet">&#8212;&#176;</span></span>
+  </div>
+  <div class="gauge gauge-objetivos">
+    <span class="label">Objetivo</span>
+    <div class="objetivo-fila">
+      <span class="mini-label">Temp</span>
+      <span class="objetivo-val mono" id="tempSet" style="color:var(--temp)">&#8212;&#176;</span>
+    </div>
+    <div class="objetivo-fila">
+      <span class="mini-label">Hum</span>
+      <span class="objetivo-val mono" id="humSet" style="color:var(--hum)">&#8212;%</span>
+    </div>
   </div>
   <div class="gauge">
     <span class="label">Humedad</span>
@@ -246,7 +259,6 @@
       <path id="arcoHum" d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--hum)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
     </svg>
     <span class="val mono" id="humVal" style="color:var(--hum)">&#8212;%</span>
-    <span class="target">Objetivo <span class="mono" id="humSet">&#8212;%</span></span>
   </div>
 </div>
 
