@@ -735,7 +735,8 @@
 
   function pasoDe(campo){ return campo === 'Tiempo' ? 60 : 1; }
 
-  function crearControlValor(input, contenedorBotones, rango, paso, valorInicial, obtenerTopic, nombreCampo, detalle, alConfirmar){
+  function crearControlValor(input, contenedorBotones, rango, paso, valorInicial, obtenerTopic, nombreCampo, detalle, alConfirmar, requiereConfirmacion){
+    if(requiereConfirmacion === undefined) requiereConfirmacion = true;
     var esDesconocido = valorInicial === null || valorInicial === undefined || isNaN(valorInicial);
     var valorConfirmado = esDesconocido ? null : valorInicial;
     input.value = esDesconocido ? '' : valorInicial;
@@ -750,12 +751,14 @@
       input.value = v;
       if(v === valorConfirmado) return;
       var etiqueta = nombreCampo + ' = ' + v + (detalle ? ' (' + detalle + ')' : '');
-      pedirConfirmacion('¿Aplicar ' + etiqueta + '?', function(){
+      function aplicarCambio(){
         valorConfirmado = v;
         if(client && client.connected){ client.publish(obtenerTopic(), String(v)); }
         if(alConfirmar) alConfirmar(v);
         agregarFeed('Guardado: ' + etiqueta);
-      }, function(){
+      }
+      if(!requiereConfirmacion){ aplicarCambio(); return; }
+      pedirConfirmacion('¿Aplicar ' + etiqueta + '?', aplicarCambio, function(){
         input.value = valorConfirmado;
       });
     }
@@ -813,7 +816,7 @@
       crearControlValor(input, fila, RANGOS[c.campo], pasoDe(c.campo), c.valor, function(){ return c.topic; }, c.campo, p.nombre, function(v){
         p[c.prop] = v;
         guardarPerfilesCache(perfiles);
-      });
+      }, false);
       ed.appendChild(fila);
     });
 
