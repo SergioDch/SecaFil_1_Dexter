@@ -355,7 +355,9 @@
   var LS_KEY = 'secafil_remoto_cfg_v1';
   var NOMBRES_FIJOS = ['PLA/PLA+','PETG','ASA','ABS','OTROS'];
   var CLAVES_MQTT = ['PLA','PETG','ASA','ABS','OTROS'];
-  var RANGOS = { Temp:[10,90], Hum:[5,60], Tiempo:[60,86400] };
+  var RANGOS = { Temp:[10,90], Hum:[5,60], Tiempo:[10,86400] };
+  var TIEMPO_CORTO_MAX = 1800, TIEMPO_LARGO_MIN = 3600;
+  var PASO_TIEMPO_CORTO = 10, PASO_TIEMPO_LARGO = 3600;
 
   function cargarConfig(){
     try {
@@ -733,7 +735,17 @@
     }
   });
 
-  function pasoDe(campo){ return campo === 'Tiempo' ? 60 : 1; }
+  function pasoTiempo(v, dir){
+    if(v <= TIEMPO_CORTO_MAX){
+      var nuevo = v + dir*PASO_TIEMPO_CORTO;
+      if(nuevo >= TIEMPO_CORTO_MAX && dir > 0) return TIEMPO_LARGO_MIN;
+      return Math.max(RANGOS.Tiempo[0], Math.min(TIEMPO_CORTO_MAX, nuevo));
+    }
+    var nuevoLargo = v + dir*PASO_TIEMPO_LARGO;
+    if(nuevoLargo <= TIEMPO_LARGO_MIN && dir < 0) return TIEMPO_CORTO_MAX;
+    return Math.max(TIEMPO_LARGO_MIN, Math.min(RANGOS.Tiempo[1], nuevoLargo));
+  }
+  function pasoDe(campo){ return campo === 'Tiempo' ? pasoTiempo : 1; }
 
   function crearControlValor(input, contenedorBotones, rango, paso, valorInicial, obtenerTopic, nombreCampo, detalle, alConfirmar, requiereConfirmacion){
     if(requiereConfirmacion === undefined) requiereConfirmacion = true;
@@ -769,7 +781,8 @@
       function pasoFn(){
         var base = parseFloat(input.value);
         if(isNaN(base)) base = valorConfirmado;
-        input.value = clamp(base + dir*paso);
+        var siguiente = (typeof paso === 'function') ? paso(base, dir) : (base + dir*paso);
+        input.value = clamp(siguiente);
       }
       function iniciar(){ detener(); pasoFn(); timeout = setTimeout(function(){ intervalo = setInterval(pasoFn, 130); }, 400); }
       function detener(){
