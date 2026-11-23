@@ -601,6 +601,10 @@
     if(ultimo.enAlarma && !alarmaAnterior) agregarFeed('[ALARMA] Se activó: ' + (d.causa_alarma || 'condición no especificada') + '.');
     else if(!ultimo.enAlarma && alarmaAnterior) agregarFeed('[ALARMA] Se desactivó (' + (ultimo.causaAlarma || 'condición anterior') + ').');
     if(ultimo.enAlarma) ultimo.causaAlarma = d.causa_alarma || null;
+    ultimo.alarmaFin = ultimo.enAlarma && d.causa_alarma === 'Secado finalizado';
+    ultimo.alertaCond = d.alerta_cond || '';
+    // Mismo aviso sonoro que el equipo: al aparecer la alarma y cada 30 s mientras siga
+    if(ultimo.enAlarma && !alarmaAnterior){ ultimo.alarmaDesde = Date.now(); ultimo.ultimoPitido = Date.now(); pitidoAlerta(); }
     $('alarmaCausa').textContent = 'Motivo: ' + (d.causa_alarma || 'no especificado');
 
     var pInfo = perfilDeTelemetria();
@@ -943,6 +947,40 @@
 
   function actualizarBannerAlarma(){ $('modalAlarma').hidden = !ultimo.enAlarma; }
 
+  // ---------- Sonido de alarma (igual que el buzzer: ti, ti, ti a 3500 Hz cada 300 ms) ----------
+  var ALERTA_FREQ = 3500, ALERTA_BEEP_ON_MS = 150, ALERTA_BEEP_PERIODO_MS = 300, ALERTA_BEEPS = 3;
+  var ALERTA_REPETIR_MS = 30000, ALERTA_ALTERNA_MS = 300, ALARMA_COND_PASO_MS = 300, ALARMA_FIN_PASO_MS = 180;
+  var audioCtx = null;
+  function desbloquearAudio(){
+    try {
+      if(!audioCtx){ var AC = window.AudioContext || window.webkitAudioContext; if(AC) audioCtx = new AC(); }
+      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    } catch(e){}
+  }
+  // El navegador solo deja sonar despues de un toque/clic del usuario en la pagina
+  document.addEventListener('click', desbloquearAudio);
+  document.addEventListener('touchstart', desbloquearAudio);
+  function pitidoAlerta(){
+    try {
+      if(!audioCtx || audioCtx.state !== 'running') return;
+      var t0 = audioCtx.currentTime + 0.02;
+      for(var i = 0; i < ALERTA_BEEPS; i++){
+        var osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+        osc.type = 'square'; osc.frequency.value = ALERTA_FREQ;
+        g.gain.value = 0.08;
+        osc.connect(g); g.connect(audioCtx.destination);
+        var ini = t0 + i * ALERTA_BEEP_PERIODO_MS / 1000;
+        osc.start(ini); osc.stop(ini + ALERTA_BEEP_ON_MS / 1000);
+      }
+    } catch(e){}
+  }
+  setInterval(function(){
+    if(ultimo.enAlarma && !ultimo.alarmaFin && ultimo.ultimoPitido && Date.now() - ultimo.ultimoPitido >= ALERTA_REPETIR_MS){
+      ultimo.ultimoPitido = Date.now();
+      pitidoAlerta();
+    }
+  }, 1000);
+
   function actualizarAvisoSensores(){
     var partes = [];
     if(ultimo.sensorTemp) partes.push('Falla sensor de temperatura');
@@ -1064,7 +1102,8 @@
   function textoTiempoPrincipal(){
     if(ultimo.sensorTemp) return 'FALLA SENSOR TEMP';
     if(ultimo.sensorHum) return 'FALLA SENSOR HUM';
-    if(ultimo.enAlarma && ultimo.ciclo) return 'ALERTA ' + (ultimo.causaAlarma || '');
+    // Igual que el TFT: alterna "ALERTA ..." y la cuenta regresiva cada 300 ms
+    if(ultimo.alertaCond && ultimo.ciclo && Math.floor(Date.now() / ALERTA_ALTERNA_MS) % 2 === 0) return 'ALERTA ' + ultimo.alertaCond;
     if(ultimo.modoAuto) return ultimo.pausado ? 'PAUSADO AUTO' : 'Modo: AUTO CONTINUO';
     if(ultimo.ciclo) return (ultimo.pausado ? 'PAUSADO ' : 'Rest: ') + fmtHMS(restanteActual());
     if(ultimo.causaParada) return 'Corte: ' + ultimo.causaParada;
@@ -1118,7 +1157,38 @@
       txt('SIN DATOS', 40, 56, 2, COLOR.gris);
       return;
     }
+    if(ultimo.enAlarma){ pintarAlarma(); return; }
     if(ultimo.vistaAmb === 1) pintarAmbiente(); else pintarPrincipal();
+  }
+
+  // Pantalla de alarma del equipo (parpadeo rojo/negro, mismos textos que el TFT)
+  function centradoAncho(s, y, tam, color){
+    ctx.font = FUENTE[tam];
+    var w = ctx.measureText(s).width;
+    txt(s, Math.round((160 - w) / 2), y, tam, color);
+  }
+  function pintarAlarma(){
+    var paso = ultimo.alarmaFin ? ALARMA_FIN_PASO_MS : ALARMA_COND_PASO_MS;
+    var rojo = Math.floor(Date.now() / paso) % 2 === 0;
+    ctx.fillStyle = rojo ? COLOR.error : COLOR.fondo;
+    ctx.fillRect(0, 0, 160, 128);
+    if(ultimo.alarmaFin){
+      centradoAncho('SECADO', 40, 2, COLOR.destacado);
+      centradoAncho('LISTO!', 62, 2, COLOR.destacado);
+      centradoAncho('FIN DE TIEMPO', 84, 1, COLOR.texto);
+      centradoAncho('Presione el boton', 100, 1, COLOR.texto);
+      centradoAncho('para continuar', 112, 1, COLOR.texto);
+      return;
+    }
+    var causas = (ultimo.causaAlarma || '').split(' y ');
+    var causa = causas.length > 1 ? causas[Math.floor(Date.now() / (ALARMA_COND_PASO_MS * 4)) % 2] : causas[0];
+    centradoAncho('ALERTA', 25, 2, COLOR.destacado);
+    centradoAncho(causa || '', 48, 2, COLOR.destacado);
+    centradoAncho('T:' + Math.round(ultimo.temp) + '/' + Math.round(ultimo.tempSet) + '°C H:' +
+                  Math.round(ultimo.hum) + '/' + Math.round(ultimo.humSet) + '%', 80, 1, COLOR.texto);
+    var linea = '';
+    if(ultimo.ciclo) linea = ultimo.modoAuto ? 'MODO AUTO' : (restanteActual() > 0 ? 'Rest: ' + fmtHMS(restanteActual()) : '');
+    if(linea) centradoAncho(linea, 100, 1, COLOR.texto);
   }
 
   function animarPantalla(){
