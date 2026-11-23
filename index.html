@@ -940,7 +940,7 @@
     else if(ultimo.estado === 'PAUSADO' || ultimo.estado === 'AUTO PAUSADO'){ pill.className = 'pill pausa'; pill.textContent = ultimo.estado; }
     else if(ultimo.estado === 'SECANDO'){ pill.className = 'pill on'; pill.textContent = 'ENCENDIDO'; }
     else if(ultimo.estado === 'AUTO'){ pill.className = 'pill on'; pill.textContent = 'AUTO'; }
-    else if(ultimo.estado === 'CORTADO'){ pill.className = 'pill finalizo'; pill.textContent = 'CORTADO'; }
+    else if(ultimo.estado === 'FINALIZADO' || ultimo.estado === 'CORTADO'){ pill.className = 'pill finalizo'; pill.textContent = 'FINALIZO'; }
     else if(ultimo.ciclo){ pill.className = 'pill on'; pill.textContent = ultimo.modoAuto ? 'AUTO' : 'ENCENDIDO'; }
     else { pill.className = 'pill off'; pill.textContent = 'APAGADO'; }
     $('btnAlarma').className = 'btnfull alarma' + (ultimo.enAlarma ? ' activa' : '');
@@ -984,8 +984,8 @@
     if(!ultimo.ciclo){
       $('tiempoTxt').textContent = '--:--';
       var etiqueta = 'Sin ciclo activo';
-      if(recienFinalizado || ultimo.causaParada === 'FIN TIEMPO') etiqueta = 'Secado finalizado';
-      else if(ultimo.causaParada) etiqueta = 'Último corte: ' + ultimo.causaParada;
+      if(ultimo.causaParada) etiqueta = 'Secado finalizado · Motivo: ' + ultimo.causaParada;
+      else if(recienFinalizado) etiqueta = 'Secado finalizado';
       $('tiempoLabel').textContent = etiqueta;
       actualizarBarra(0);
       return;
@@ -1087,7 +1087,7 @@
     else if(hayAlerta) l1 = ('ALERTA ' + causas.temp + ' ' + causas.hum).replace(/\s+$/, '');
     else if(ultimo.modoAuto) l1 = ultimo.pausado ? 'PAUSADO AUTO' : 'Modo: AUTO CONTINUO';
     else if(ultimo.ciclo) l1 = (ultimo.pausado ? 'PAUSADO ' : 'Rest: ') + fmtHMS(restanteActual());
-    else if(ultimo.causaParada) l1 = 'Corte: ' + ultimo.causaParada;
+    else if(ultimo.causaParada) l1 = 'FINALIZO SECADO';
     else { var p = perfilDeTelemetria(); l1 = 'Tiempo: ' + formatearTiempo(p ? p.tiempo : 0); }
 
     var l2 = '';
@@ -1095,6 +1095,8 @@
     if(hayAviso){
       if(ultimo.modoAuto) l2 = 'MODO AUTO';
       else if(ultimo.ciclo) l2 = (ultimo.pausado ? 'PAUSADO ' : 'Rest: ') + fmtHMS(restanteActual());
+    } else if(!ultimo.ciclo && ultimo.causaParada){
+      l2 = 'Motivo: ' + ultimo.causaParada;
     }
     return {l1:l1, l2:l2};
   }
