@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#11141c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SecaFil">
 <title>SecaFil</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap">
 <style>
@@ -200,10 +204,24 @@
   @media (prefers-reduced-motion:reduce){ .alarma-fondo{animation:none} }
 
   [hidden]{display:none!important}
+  .pill.pausa{background:var(--warn-bg); color:var(--warn)}
+  .aviso-sensor{font-size:.78rem; color:var(--bad); font-weight:600; margin-top:8px; text-align:center}
+  .acciones{display:flex; flex-direction:column; gap:10px}
+  .acciones .par{display:flex; gap:10px}
+  .acciones .par button{flex:1}
+  .pantalla-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:12px; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; gap:8px; margin-bottom:14px;
+  }
+  .pantalla-card .label{font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px}
+  .pantalla-card canvas{
+    width:100%; height:auto; aspect-ratio:160/128; image-rendering:auto; display:block;
+    border-radius:8px; background:#000; border:1px solid var(--border);
+  }
+  .stepper input.tiempo{width:118px; font-size:.82rem}
 </style>
 </head>
 <body>
-
 
 <header>
   <div></div>
@@ -214,6 +232,9 @@
   <div style="display:flex; gap:8px; justify-content:flex-end">
     <button class="iconbtn" id="btnTema" aria-label="Cambiar tema" title="Cambiar tema">
       <svg id="iconoTema" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+    </button>
+    <button class="iconbtn" id="btnDescargar" aria-label="Descargar la página" title="Descargar la página">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     </button>
     <button class="iconbtn" id="btnConfig" aria-label="Configuración de conexión" title="Configuración">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -231,47 +252,25 @@
   <div class="progreso-track"><div class="progreso-fill" id="progresoFill"></div></div>
   <div class="hero-tiempo mono" id="tiempoTxt">&#8212;&#8212;:&#8212;&#8212;</div>
   <div class="hero-tiempo-label" id="tiempoLabel">Tiempo restante</div>
+  <div class="aviso-sensor" id="avisoSensor" hidden></div>
 </div>
 
-<div class="gauges">
-  <div class="gauge">
-    <span class="label">Temperatura</span>
-    <svg viewBox="0 0 120 70" aria-hidden="true">
-      <path d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--track)" stroke-width="10" stroke-linecap="round"/>
-      <path id="arcoTemp" d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--temp)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
-    </svg>
-    <span class="val mono" id="tempVal" style="color:var(--temp)">&#8212;&#176;C</span>
-  </div>
-  <div class="gauge gauge-objetivos">
-    <span class="label">Objetivo</span>
-    <div class="objetivo-fila">
-      <span class="mini-label">Temp</span>
-      <span class="objetivo-val mono" id="tempSet" style="color:var(--temp)">&#8212;&#176;C</span>
-    </div>
-    <div class="objetivo-fila">
-      <span class="mini-label">Hum</span>
-      <span class="objetivo-val mono" id="humSet" style="color:var(--hum)">&#8212;%</span>
-    </div>
-  </div>
-  <div class="gauge">
-    <span class="label">Humedad</span>
-    <svg viewBox="0 0 120 70" aria-hidden="true">
-      <path d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--track)" stroke-width="10" stroke-linecap="round"/>
-      <path id="arcoHum" d="M10,65 A50,50 0 0 1 110,65" fill="none" style="stroke:var(--hum)" stroke-width="10" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
-    </svg>
-    <span class="val mono" id="humVal" style="color:var(--hum)">&#8212;%</span>
-  </div>
+<div class="pantalla-card">
+  <span class="label">Pantalla del equipo (en vivo)</span>
+  <canvas id="pantallaEquipo" width="160" height="128" aria-label="Pantalla de la secadora"></canvas>
+  <p class="nota" id="pantallaNota">Esperando datos del equipo...</p>
 </div>
 
 <div class="seccion">
   <div class="titulo">Perfil / Modo</div>
   <select class="selector-modo" id="selectorModo">
     <option value="" selected>Elegir perfil o modo...</option>
-    <option value="0">PLA/PLA+</option>
+    <option value="0">PLA</option>
     <option value="1">PETG</option>
-    <option value="2">ASA</option>
+    <option value="2">TPU</option>
     <option value="3">ABS</option>
-    <option value="4">OTROS</option>
+    <option value="4">ASA</option>
+    <option value="5">OTROS</option>
     <option value="auto">AUTOMATICO</option>
     <option value="salir">Salir</option>
   </select>
@@ -298,6 +297,7 @@
       </div>
     </div>
     <button class="btnfull secundario" id="btnAuto">Iniciar automático</button>
+    <button class="btnfull secundario" id="btnAutoPausa" hidden>Pausar</button>
     <button class="btnfull secundario" id="btnSalirAuto">Salir</button>
   </div>
 </div>
@@ -355,7 +355,7 @@
 <div class="modal-fondo alarma-fondo" id="modalAlarma" hidden>
   <div class="modal">
     <h2>⚠ Alarma activa</h2>
-    <p class="nota">El equipo reporta una condición de alarma (temperatura, humedad fuera de rango, o secado finalizado). Revisá la secadora.</p>
+    <p class="nota"><strong id="alarmaCausa">Motivo: no especificado</strong></p>
     <button class="btnfull peligro" id="btnSilenciarAlarmaModal">Silenciar alarma</button>
   </div>
 </div>
@@ -365,70 +365,74 @@
 (function(){
   "use strict";
 
+  // Copia del HTML original de la pagina, para descargarla desde el celular
+  var HTML_ORIGINAL = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
   var LS_KEY = 'secafil_remoto_cfg_v1';
-  var NOMBRES_FIJOS = ['PLA/PLA+','PETG','ASA','ABS','OTROS'];
-  var CLAVES_MQTT = ['PLA','PETG','ASA','ABS','OTROS'];
-  var RANGOS = { Temp:[10,90], Hum:[5,60], Tiempo:[10,86400] };
-  var TIEMPO_CORTO_MAX = 1800, TIEMPO_LARGO_MIN = 3600;
-  var PASO_TIEMPO_CORTO = 10, PASO_TIEMPO_LARGO = 3600;
+  var NOMBRES = ['PLA','PETG','TPU','ABS','ASA','OTROS'];
+  // Valores por defecto: iguales a los del firmware (perfiles[] de SecaFil_6)
+  var PERFILES_DEFECTO = [
+    {nombre:'PLA',   temp:45, hum:10, tiempo:14400},
+    {nombre:'PETG',  temp:65, hum:10, tiempo:18000},
+    {nombre:'TPU',   temp:60, hum:10, tiempo:14400},
+    {nombre:'ABS',   temp:75, hum:10, tiempo:14400},
+    {nombre:'ASA',   temp:70, hum:10, tiempo:14400},
+    {nombre:'OTROS', temp:10, hum:10, tiempo:14400}
+  ];
+  var AUTO_DEFECTO = {temp:50, hum:15};
+  var RANGO_TEMP = [5,90], RANGO_HUM = [5,60], RANGO_TIEMPO = [0,172800];
+  var MARGEN_HUM_ALTA = 3, MARGEN_HUM_BAJA = 5;
+  var UMBRAL_SIN_DATOS_MS = 12000, TIEMPO_FIN_A_AMBIENTE_MS = 20000;
+
+  var COLOR = {fondo:'#000000', texto:'#ffffff', destacado:'#ffff00', linea:'#00ffff', error:'#ff0000',
+               gris:'#c6c6c6', grisOscuro:'#424242', estable:'#00ffff', falta:'#ffff00', alta:'#ff0000'};
+  var FUENTE = {
+    1:'10px "JetBrains Mono", monospace',
+    2:'600 20px "JetBrains Mono", monospace',
+    3:'600 30px "JetBrains Mono", monospace'
+  };
 
   function cargarConfig(){
-    try {
-      var raw = localStorage.getItem(LS_KEY);
-      if(raw) return JSON.parse(raw);
-    } catch(e){}
+    try { var raw = localStorage.getItem(LS_KEY); if(raw) return JSON.parse(raw); } catch(e){}
     return { host:'5dab8a9752864256b9b112a6465de82a.s1.eu.hivemq.cloud', port:8884, dev:'1', user:'', pass:'' };
   }
-  function guardarConfigLS(cfg){
-    try { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); } catch(e){}
-  }
-
+  function guardarConfigLS(c){ try { localStorage.setItem(LS_KEY, JSON.stringify(c)); } catch(e){} }
   var cfg = cargarConfig();
 
-  function clavePerfilesCache(){ return 'secafil_remoto_perfiles_' + (cfg.dev || '1'); }
+  function clavePerfilesCache(){ return 'secafil_remoto_perfiles_v2_' + (cfg.dev || '1'); }
   function cargarPerfilesCache(){
     try {
       var raw = localStorage.getItem(clavePerfilesCache());
-      if(raw){
-        var lista = JSON.parse(raw);
-        if(Array.isArray(lista) && lista.length === 5) return lista;
-      }
+      if(raw){ var lista = JSON.parse(raw); if(Array.isArray(lista) && lista.length === 6) return lista; }
     } catch(e){}
     return null;
   }
-  function guardarPerfilesCache(lista){
-    try { localStorage.setItem(clavePerfilesCache(), JSON.stringify(lista)); } catch(e){}
-  }
+  function guardarPerfilesCache(lista){ try { localStorage.setItem(clavePerfilesCache(), JSON.stringify(lista)); } catch(e){} }
 
   function claveAutoCache(){ return 'secafil_remoto_auto_' + (cfg.dev || '1'); }
   function cargarAutoCache(){
     try {
       var raw = localStorage.getItem(claveAutoCache());
-      if(raw){
-        var obj = JSON.parse(raw);
-        if(obj && typeof obj.temp === 'number' && typeof obj.hum === 'number') return obj;
-      }
+      if(raw){ var o = JSON.parse(raw); if(o && typeof o.temp === 'number' && typeof o.hum === 'number') return o; }
     } catch(e){}
     return null;
   }
-  function guardarAutoCache(obj){
-    try { localStorage.setItem(claveAutoCache(), JSON.stringify(obj)); } catch(e){}
-  }
+  function guardarAutoCache(o){ try { localStorage.setItem(claveAutoCache(), JSON.stringify(o)); } catch(e){} }
 
   var client = null;
   var topics = null;
   var perfilesCache = cargarPerfilesCache();
-  var perfiles = perfilesCache || NOMBRES_FIJOS.map(function(n){ return {nombre:n, temp:null, hum:null, tiempo:null}; });
-  var perfilesRecibidos = !!perfilesCache;
+  var perfiles = perfilesCache || PERFILES_DEFECTO.map(function(p){ return {nombre:p.nombre, temp:p.temp, hum:p.hum, tiempo:p.tiempo}; });
   var perfilSeleccionado = 0;
   var editandoCampo = null;
-  var ultimo = { tiempo:0, recibidoEn:0, ciclo:0, modoAuto:0, total:0, enAlarma:false, causaAlarma:null };
-  var ultimoCicloVisto = 0;
-  var cicloTotalObservado = 0;
-  var finalizadoDesde = 0;
-  var ultimoMensajeEn = 0;
-  var UMBRAL_SIN_DATOS_MS = 12000;
-  var TIEMPO_FIN_A_AMBIENTE_MS = 20000;
+  var autoOculto = false;
+  var ultimo = {
+    recibido:false, ciclo:0, modoAuto:0, pausado:0, estado:'', perfilActivo:'', causaParada:'',
+    tiempo:0, recibidoEn:0, total:0, temp:0, hum:0, tempSet:0, humSet:0,
+    sensorTemp:false, sensorHum:false, pwmCal:0, pwmVent:0, vistaAmb:1,
+    enAlarma:false, causaAlarma:null, alarmaActiva:false
+  };
+  var ultimoCicloVisto = 0, cicloTotalObservado = 0, finalizadoDesde = 0, ultimoMensajeEn = 0;
 
   function $(id){ return document.getElementById(id); }
 
@@ -441,26 +445,19 @@
   }
   $('btnConfirmarSi').onclick = function(){
     $('modalConfirmar').hidden = true;
-    var cb = confirmarAlAceptar;
-    confirmarAlAceptar = null; confirmarAlCancelar = null;
+    var cb = confirmarAlAceptar; confirmarAlAceptar = null; confirmarAlCancelar = null;
     if(cb) cb();
   };
   $('btnConfirmarNo').onclick = function(){
     $('modalConfirmar').hidden = true;
-    var cb = confirmarAlCancelar;
-    confirmarAlAceptar = null; confirmarAlCancelar = null;
+    var cb = confirmarAlCancelar; confirmarAlAceptar = null; confirmarAlCancelar = null;
     if(cb) cb();
   };
 
   var SVG_SOL = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
   var SVG_LUNA = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
-
-  function obtenerTemaGuardado(){
-    try { return localStorage.getItem('secafil_tema'); } catch(e){ return null; }
-  }
-  function guardarTema(t){
-    try { localStorage.setItem('secafil_tema', t); } catch(e){}
-  }
+  function obtenerTemaGuardado(){ try { return localStorage.getItem('secafil_tema'); } catch(e){ return null; } }
+  function guardarTema(t){ try { localStorage.setItem('secafil_tema', t); } catch(e){} }
   function temaPreferidoSistema(){
     return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
   }
@@ -469,38 +466,29 @@
     $('iconoTema').innerHTML = (t === 'dark') ? SVG_LUNA : SVG_SOL;
   }
   function inicializarTema(){
-    var guardado = obtenerTemaGuardado();
-    aplicarTema((guardado === 'light' || guardado === 'dark') ? guardado : temaPreferidoSistema());
+    var g = obtenerTemaGuardado();
+    aplicarTema((g === 'light' || g === 'dark') ? g : temaPreferidoSistema());
   }
   $('btnTema').onclick = function(){
     var actual = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
     var nuevo = actual === 'dark' ? 'light' : 'dark';
-    guardarTema(nuevo);
-    aplicarTema(nuevo);
+    guardarTema(nuevo); aplicarTema(nuevo);
   };
   inicializarTema();
 
   function construirTopicos(dev){
-    var base = 'secafil6/'+dev+'/';
+    var base = 'secafil6/' + dev + '/';
     return {
-      telemetria: base+'telemetria',
-      perfiles: base+'perfiles',
-      alertas: base+'alertas',
-      ack: base+'ack',
-      cmdAccion: base+'cmd/accion',
-      cmdTemp: base+'cmd/set_temp',
-      cmdHume: base+'cmd/set_hume',
-      cmdPerfil: base+'cmd/perfil',
-      cmdTiempo: base+'cmd/set_tiempo',
-      cmdAutoTemp: base+'cmd/set_auto_temp',
-      cmdAutoHume: base+'cmd/set_auto_hume',
-      cmdSilenciar: base+'cmd/silenciar'
+      telemetria: base + 'telemetria', perfiles: base + 'perfiles', alertas: base + 'alertas', ack: base + 'ack',
+      cmdAccion: base + 'cmd/accion', cmdTemp: base + 'cmd/set_temp', cmdHume: base + 'cmd/set_hume',
+      cmdPerfil: base + 'cmd/perfil', cmdTiempo: base + 'cmd/set_tiempo',
+      cmdAutoTemp: base + 'cmd/set_auto_temp', cmdAutoHume: base + 'cmd/set_auto_hume',
+      cmdSilenciar: base + 'cmd/silenciar'
     };
   }
 
   function setConn(estado, texto){
-    var pill = $('connPill');
-    pill.className = 'conn ' + estado;
+    $('connPill').className = 'conn ' + estado;
     $('connTxt').textContent = texto;
   }
 
@@ -511,45 +499,32 @@
     var item = document.createElement('div');
     item.className = 'feed-item';
     var hora = new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-    item.innerHTML = '<time>'+hora+'</time><span></span>';
+    item.innerHTML = '<time>' + hora + '</time><span></span>';
     item.querySelector('span').textContent = texto;
     feed.prepend(item);
     while(feed.children.length > 12) feed.removeChild(feed.lastChild);
   }
 
   function conectar(){
-    if(client){ try{ client.end(true); }catch(e){} }
+    if(client){ try { client.end(true); } catch(e){} }
     topics = construirTopicos(cfg.dev || '1');
-    if(!cfg.host || !cfg.user){
-      setConn('bad', 'Configurá el broker');
-      abrirConfig();
-      return;
-    }
+    if(!cfg.host || !cfg.user){ setConn('bad', 'Configurá el broker'); abrirConfig(); return; }
     setConn('wait', 'Conectando...');
-    if(typeof mqtt === 'undefined'){
-      setConn('bad', 'No cargo la libreria MQTT (revisa tu conexion a internet)');
-      return;
-    }
+    if(typeof mqtt === 'undefined'){ setConn('bad', 'No cargo la libreria MQTT (revisa tu conexion a internet)'); return; }
     var url = 'wss://' + cfg.host + ':' + (cfg.port || 8884) + '/mqtt';
     try {
       client = mqtt.connect(url, {
-        username: cfg.user,
-        password: cfg.pass,
+        username: cfg.user, password: cfg.pass,
         clientId: 'secafil_dash_' + Math.random().toString(16).slice(2),
-        reconnectPeriod: 4000,
-        connectTimeout: 8000,
-        clean: true
+        reconnectPeriod: 4000, connectTimeout: 8000, clean: true
       });
     } catch(e){
       setConn('bad', 'No se pudo conectar: ' + (e && e.message ? e.message : e));
       return;
     }
-
     client.on('connect', function(){
       setConn('ok', 'En línea');
-      [topics.telemetria, topics.perfiles, topics.alertas, topics.ack].forEach(function(t){
-        client.subscribe(t);
-      });
+      [topics.telemetria, topics.perfiles, topics.alertas, topics.ack].forEach(function(t){ client.subscribe(t); });
     });
     client.on('reconnect', function(){ setConn('wait', 'Reconectando...'); });
     client.on('close', function(){ setConn('bad', 'Sin conexión'); });
@@ -558,7 +533,6 @@
       setConn('bad', 'Error: ' + msg);
       agregarFeed('Error de conexión: ' + msg);
     });
-
     client.on('message', function(topic, payload){
       ultimoMensajeEn = Date.now();
       var texto = payload.toString();
@@ -579,31 +553,17 @@
   function manejarPerfiles(texto){
     try {
       var lista = JSON.parse(texto);
-      if(Array.isArray(lista) && lista.length === 5){
+      if(Array.isArray(lista) && lista.length === 6){
         perfiles = lista;
-        perfilesRecibidos = true;
         guardarPerfilesCache(lista);
         if(editandoCampo) renderEditor();
       }
     } catch(e){}
   }
 
-  function sincronizarModoActivo(d){
-    if(!d.ciclo) return;
-    if(!$('modalConfirmar').hidden) return;
-    var activo = document.activeElement;
-    var editando = activo && activo.tagName === 'INPUT' && (activo.closest('#editorPerfil') || activo.closest('#autoCard'));
-    if(editando) return;
-
-    if(d.modo_auto){
-      if($('selectorModo').value === 'auto' && !$('autoCard').hidden) return;
-      return;
-    }
-    var idx = NOMBRES_FIJOS.indexOf(d.perfil);
-    if(idx === -1) return;
-    if(!$('editorPerfil').hidden && perfilSeleccionado === idx){
-      renderEditor();
-    }
+  function perfilDeTelemetria(){
+    var idx = NOMBRES.indexOf(ultimo.perfilActivo);
+    return idx === -1 ? perfiles[perfilSeleccionado] : perfiles[idx];
   }
 
   function manejarTelemetria(texto){
@@ -613,196 +573,138 @@
     var cicloAnteriorVisto = ultimoCicloVisto;
     if(ultimoCicloVisto === 1 && !d.ciclo){ finalizadoDesde = Date.now(); }
     ultimoCicloVisto = d.ciclo ? 1 : 0;
+    if(!d.ciclo){ cicloTotalObservado = 0; }
+    else if(cicloAnteriorVisto !== 1 || (d.tiempo || 0) > cicloTotalObservado){ cicloTotalObservado = d.tiempo || 0; }
 
-    if(!d.ciclo){
-      cicloTotalObservado = 0;
-    } else if(cicloAnteriorVisto !== 1 || (d.tiempo || 0) > cicloTotalObservado){
-      cicloTotalObservado = d.tiempo || 0;
-    }
-
-    $('perfilTxt').textContent = d.perfil || '--';
-
-    $('tempVal').textContent = Math.round(d.temp_act) + '°C';
-    $('humVal').textContent = Math.round(d.hume_act) + '%';
-    $('tempSet').textContent = Math.round(d.temp_set) + '°C';
-    $('humSet').textContent = Math.round(d.hume_set) + '%';
-    pintarArco('arcoTemp', d.temp_act, 0, 100);
-    pintarArco('arcoHum', d.hume_act, 0, 100);
-
+    ultimo.recibido = true;
     ultimo.tiempo = d.tiempo || 0;
     ultimo.recibidoEn = Date.now();
     ultimo.ciclo = d.ciclo ? 1 : 0;
     ultimo.modoAuto = d.modo_auto ? 1 : 0;
+    ultimo.pausado = d.pausado ? 1 : 0;
+    ultimo.estado = d.estado || '';
+    ultimo.perfilActivo = d.perfil || '';
+    ultimo.causaParada = d.causa_parada || '';
+    ultimo.temp = Number(d.temp_act) || 0;
+    ultimo.hum = Number(d.hume_act) || 0;
+    ultimo.tempSet = Number(d.temp_set) || 0;
+    ultimo.humSet = Number(d.hume_set) || 0;
+    ultimo.sensorTemp = d.sensor_temp === 'FALLA';
+    ultimo.sensorHum = d.sensor_hum === 'FALLA';
+    ultimo.pwmCal = Number(d.pwm_calentador) || 0;
+    ultimo.pwmVent = Number(d.pwm_ventilador) || 0;
+    ultimo.vistaAmb = (d.vista_ambiente === undefined) ? 1 : (d.vista_ambiente ? 1 : 0);
+
     var alarmaAnterior = ultimo.enAlarma;
     ultimo.enAlarma = d.alarma !== 'NINGUNA';
+    ultimo.alarmaActiva = ultimo.enAlarma;
     if(ultimo.enAlarma && !alarmaAnterior) agregarFeed('[ALARMA] Se activó: ' + (d.causa_alarma || 'condición no especificada') + '.');
     else if(!ultimo.enAlarma && alarmaAnterior) agregarFeed('[ALARMA] Se desactivó (' + (ultimo.causaAlarma || 'condición anterior') + ').');
     if(ultimo.enAlarma) ultimo.causaAlarma = d.causa_alarma || null;
-    var perfilInfo = perfiles.find(function(p){ return p.nombre === d.perfil; });
-    var totalConocido = (perfilInfo && typeof perfilInfo.tiempo === 'number') ? perfilInfo.tiempo : 0;
-    ultimo.total = d.modo_auto ? 0 : Math.max(cicloTotalObservado, totalConocido);
+    $('alarmaCausa').textContent = 'Motivo: ' + (d.causa_alarma || 'no especificado');
+
+    var pInfo = perfilDeTelemetria();
+    ultimo.total = d.modo_auto ? 0 : Math.max(cicloTotalObservado, (pInfo && typeof pInfo.tiempo === 'number') ? pInfo.tiempo : 0);
+
+    $('perfilTxt').textContent = d.perfil || '--';
     actualizarTiempo();
     actualizarBannerAlarma();
-    sincronizarModoActivo(d);
 
     if(d.modo_auto){
-      controlAutoTemp.fijarValorConfirmado(Math.round(d.temp_set));
-      controlAutoHum.fijarValorConfirmado(Math.round(d.hume_set));
+      controlAutoTemp.fijarValorConfirmado(Math.round(ultimo.tempSet));
+      controlAutoHum.fijarValorConfirmado(Math.round(ultimo.humSet));
     }
-    $('btnAuto').textContent = (d.modo_auto && d.ciclo) ? 'Detener' : 'Iniciar automático';
+    actualizarPanelAuto();
+    actualizarAvisoSensores();
+    renderAcciones();
   }
 
-  function pintarArco(id, valor, min, max){
-    var el = $(id);
-    var pct = Math.max(0, Math.min(1, (valor - min) / (max - min)));
-    var largo = 157;
-    el.setAttribute('stroke-dashoffset', String(largo * (1 - pct)));
+  // ---------- Tiempo: mismos pasos y formato que el firmware ----------
+  function pasoTiempo(v, giro){
+    if(giro > 0){
+      if(v < TIEMPO_CORTO_MAX) v += 1;
+      else if(v < TIEMPO_LARGO_MIN) v += 60;
+      else v += TIEMPO_PASO_LARGO;
+    } else if(giro < 0){
+      if(v <= TIEMPO_CORTO_MAX) v -= 1;
+      else if(v <= TIEMPO_LARGO_MIN) v -= 60;
+      else v -= TIEMPO_PASO_LARGO;
+    }
+    return Math.max(RANGO_TIEMPO[0], Math.min(RANGO_TIEMPO[1], v));
   }
+  var TIEMPO_CORTO_MAX = 60, TIEMPO_LARGO_MIN = 3600, TIEMPO_PASO_LARGO = 3600;
 
-  function fmtTiempo(s){
+  function formatearTiempo(s){
+    s = Math.max(0, Math.round(s));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), seg = s % 60;
+    if(h > 0) return m > 0 ? (h + ' h ' + m + ' min') : (h + ' h');
+    if(m > 0) return seg > 0 ? (m + ' min ' + seg + ' s') : (m + ' min');
+    return seg + ' s';
+  }
+  // Acepta "90", "5 min", "2 h", "1 h 30 min", "45 s"
+  function parsearTiempo(texto){
+    var s = String(texto).replace(',', '.').trim();
+    if(/^\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+    var re = /(\d+(?:\.\d+)?)\s*(horas?|hs?|h|min|m|seg|s)?/gi, total = 0, hay = false, m;
+    while((m = re.exec(s))){
+      hay = true;
+      var n = parseFloat(m[1]), u = (m[2] || 's').toLowerCase();
+      if(u[0] === 'h') total += n * 3600;
+      else if(u === 'min' || u === 'm') total += n * 60;
+      else total += n;
+    }
+    return hay ? total : NaN;
+  }
+  function fmtHMS(s){
     s = Math.max(0, Math.floor(s));
-    var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), seg = s%60;
-    var mm = String(m).padStart(2,'0'), ss = String(seg).padStart(2,'0');
-    return h>0 ? (h+':'+mm+':'+ss) : (mm+':'+ss);
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), seg = s % 60;
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(seg).padStart(2,'0');
   }
 
-  function actualizarEstadoPill(recienFinalizado){
-    var pill = $('estadoPill');
-    if(ultimo.enAlarma){ pill.className='pill alarma'; pill.textContent='ALARMA'; }
-    else if(ultimo.ciclo){ pill.className='pill on'; pill.textContent='ENCENDIDO'; }
-    else if(recienFinalizado){ pill.className='pill finalizo'; pill.textContent='FINALIZO'; }
-    else { pill.className='pill off'; pill.textContent='APAGADO'; }
-    $('btnAlarma').className = 'btnfull alarma' + (ultimo.enAlarma ? ' activa' : '');
-  }
+  // ---------- Controles con stepper (confirmacion al soltar, como antes) ----------
+  function crearControl(o){
+    var input = o.input;
+    var confirmado = (o.valorInicial === null || o.valorInicial === undefined || isNaN(o.valorInicial)) ? null : o.valorInicial;
 
-  function actualizarBannerAlarma(){
-    $('modalAlarma').hidden = !ultimo.enAlarma;
-  }
-
-  function actualizarBarra(restante){
-    var fill = $('progresoFill');
-    if(!ultimo.ciclo || ultimo.modoAuto || !ultimo.total){
-      fill.style.width = '0%';
-      fill.style.background = 'transparent';
-      return;
+    function pintar(v){ input.value = (v === null || v === undefined) ? '' : o.mostrar(v); }
+    function limitar(v){
+      if(isNaN(v)) v = (confirmado === null) ? o.min : confirmado;
+      return Math.max(o.min, Math.min(o.max, Math.round(v)));
     }
-    var pct = Math.max(0, Math.min(100, (restante / ultimo.total) * 100));
-    fill.style.width = pct + '%';
-    fill.style.background = 'var(--temp)';
-  }
-
-  function actualizarTiempo(){
-    var recienFinalizado = !ultimo.ciclo && finalizadoDesde && (Date.now() - finalizadoDesde < TIEMPO_FIN_A_AMBIENTE_MS);
-    actualizarEstadoPill(recienFinalizado);
-    actualizarBannerAlarma();
-
-    if(ultimo.modoAuto && ultimo.ciclo){
-      $('tiempoTxt').textContent = 'CONTINUO';
-      $('tiempoLabel').textContent = 'Modo automático';
-      actualizarBarra(0);
-      return;
+    function leerActual(){
+      var v = o.leer(input.value);
+      return isNaN(v) ? ((confirmado === null) ? o.min : confirmado) : v;
     }
-    if(!ultimo.ciclo){
-      $('tiempoTxt').textContent = '--:--';
-      $('tiempoLabel').textContent = recienFinalizado ? 'Secado finalizado' : 'Sin ciclo activo';
-      actualizarBarra(0);
-      return;
-    }
-    var transcurrido = Math.floor((Date.now() - ultimo.recibidoEn)/1000);
-    var restante = Math.max(0, ultimo.tiempo - transcurrido);
-    $('tiempoTxt').textContent = fmtTiempo(restante);
-    actualizarBarra(restante);
-    $('tiempoLabel').textContent = 'Tiempo restante';
-  }
-  setInterval(actualizarTiempo, 1000);
-
-  function salirDeEdicion(){
-    $('editorPerfil').hidden = true;
-    $('autoCard').hidden = true;
-    editandoCampo = null;
-    $('selectorModo').value = '';
-  }
-
-  $('selectorModo').addEventListener('change', function(e){
-    var v = e.target.value;
-    if(v === '' ){
-      salirDeEdicion();
-    } else if(v === 'salir'){
-      salirDeEdicion();
-    } else if(v === 'auto'){
-      $('editorPerfil').hidden = true;
-      editandoCampo = null;
-      $('autoCard').hidden = false;
-    } else {
-      var i = parseInt(v, 10);
-      pedirConfirmacion('¿Cambiar el perfil activo a ' + NOMBRES_FIJOS[i] + '?', function(){
-        perfilSeleccionado = i;
-        editandoCampo = 'Temp';
-        $('autoCard').hidden = true;
-        if(client && client.connected){
-          client.publish(topics.cmdPerfil, CLAVES_MQTT[i]);
-        }
-        renderEditor();
-      }, function(){
-        e.target.value = '';
-      });
-    }
-  });
-
-  function pasoTiempo(v, dir){
-    if(v <= TIEMPO_CORTO_MAX){
-      var nuevo = v + dir*PASO_TIEMPO_CORTO;
-      if(nuevo >= TIEMPO_CORTO_MAX && dir > 0) return TIEMPO_LARGO_MIN;
-      return Math.max(RANGOS.Tiempo[0], Math.min(TIEMPO_CORTO_MAX, nuevo));
-    }
-    var nuevoLargo = v + dir*PASO_TIEMPO_LARGO;
-    if(nuevoLargo <= TIEMPO_LARGO_MIN && dir < 0) return TIEMPO_CORTO_MAX;
-    return Math.max(TIEMPO_LARGO_MIN, Math.min(RANGOS.Tiempo[1], nuevoLargo));
-  }
-  function pasoDe(campo){ return campo === 'Tiempo' ? pasoTiempo : 1; }
-
-  function crearControlValor(input, contenedorBotones, rango, paso, valorInicial, obtenerTopic, nombreCampo, detalle, alConfirmar, requiereConfirmacion){
-    if(requiereConfirmacion === undefined) requiereConfirmacion = true;
-    var esDesconocido = valorInicial === null || valorInicial === undefined || isNaN(valorInicial);
-    var valorConfirmado = esDesconocido ? null : valorInicial;
-    input.value = esDesconocido ? '' : valorInicial;
-
-    function clamp(v){
-      if(isNaN(v)) v = (valorConfirmado === null) ? rango[0] : valorConfirmado;
-      return Math.max(rango[0], Math.min(rango[1], Math.round(v)));
-    }
+    pintar(confirmado);
 
     function confirmarSiCambio(){
-      var v = clamp(parseFloat(input.value));
-      input.value = v;
-      if(v === valorConfirmado) return;
-      var etiqueta = nombreCampo + ' = ' + v + (detalle ? ' (' + detalle + ')' : '');
-      function aplicarCambio(){
-        valorConfirmado = v;
-        if(client && client.connected){ client.publish(obtenerTopic(), String(v)); }
-        if(alConfirmar) alConfirmar(v);
+      var v = limitar(leerActual());
+      pintar(v);
+      if(v === confirmado) return;
+      var etiqueta = o.nombre + ' = ' + o.mostrar(v) + (o.detalle ? ' (' + o.detalle + ')' : '');
+      function aplicar(){
+        confirmado = v;
+        if(client && client.connected){ client.publish(o.topic(), String(v)); }
+        if(o.alConfirmar) o.alConfirmar(v);
         agregarFeed('Guardado: ' + etiqueta);
       }
-      if(!requiereConfirmacion){ aplicarCambio(); return; }
-      pedirConfirmacion('¿Aplicar ' + etiqueta + '?', aplicarCambio, function(){
-        input.value = valorConfirmado;
-      });
+      if(!o.requiereConfirmacion){ aplicar(); return; }
+      pedirConfirmacion('¿Aplicar ' + etiqueta + '?', aplicar, function(){ pintar(confirmado); });
     }
 
-    contenedorBotones.querySelectorAll('button').forEach(function(btn){
+    o.botones.querySelectorAll('button').forEach(function(btn){
       var dir = parseInt(btn.dataset.dir, 10);
-      var intervalo=null, timeout=null;
-      function pasoFn(){
-        var base = parseFloat(input.value);
-        if(isNaN(base)) base = valorConfirmado;
-        var siguiente = (typeof paso === 'function') ? paso(base, dir) : (base + dir*paso);
-        input.value = clamp(siguiente);
+      var intervalo = null, timeout = null;
+      function paso(){
+        var base = leerActual();
+        var sig = o.paso(base, dir);
+        pintar(limitar(sig));
       }
-      function iniciar(){ detener(); pasoFn(); timeout = setTimeout(function(){ intervalo = setInterval(pasoFn, 130); }, 400); }
+      function iniciar(){ detener(); paso(); timeout = setTimeout(function(){ intervalo = setInterval(paso, 130); }, 400); }
       function detener(){
-        var habiaTimer = !!(timeout || intervalo);
-        clearTimeout(timeout); clearInterval(intervalo); timeout=null; intervalo=null;
-        if(habiaTimer) confirmarSiCambio();
+        var habia = !!(timeout || intervalo);
+        clearTimeout(timeout); clearInterval(intervalo); timeout = null; intervalo = null;
+        if(habia) confirmarSiCambio();
       }
       btn.addEventListener('mousedown', iniciar);
       btn.addEventListener('touchstart', function(e){ e.preventDefault(); iniciar(); });
@@ -812,87 +714,429 @@
 
     return {
       fijarValorConfirmado: function(v){
-        valorConfirmado = clamp(v);
-        if(document.activeElement !== input) input.value = valorConfirmado;
+        confirmado = limitar(v);
+        if(document.activeElement !== input) pintar(confirmado);
       }
     };
+  }
+
+  var numero = function(s){ return parseFloat(String(s).replace(',', '.')); };
+  var pasoFijo = function(base, dir){ return base + dir; };
+  var mostrarNumero = function(v){ return String(v); };
+
+  var controlAutoTemp, controlAutoHum;
+  function iniciarControlesAuto(){
+    var cache = cargarAutoCache() || AUTO_DEFECTO;
+    controlAutoTemp = crearControl({
+      input:$('autoTempInput'), botones:$('stepAutoTemp'), min:RANGO_TEMP[0], max:RANGO_TEMP[1],
+      paso:pasoFijo, leer:numero, mostrar:mostrarNumero, valorInicial:cache.temp,
+      topic:function(){ return topics.cmdAutoTemp; }, nombre:'Temp', detalle:'automático',
+      requiereConfirmacion:true,
+      alConfirmar:function(v){ var a = cargarAutoCache() || {temp:50, hum:15}; a.temp = v; guardarAutoCache(a); }
+    });
+    controlAutoHum = crearControl({
+      input:$('autoHumInput'), botones:$('stepAutoHum'), min:RANGO_HUM[0], max:RANGO_HUM[1],
+      paso:pasoFijo, leer:numero, mostrar:mostrarNumero, valorInicial:cache.hum,
+      topic:function(){ return topics.cmdAutoHume; }, nombre:'Hum', detalle:'automático',
+      requiereConfirmacion:true,
+      alConfirmar:function(v){ var a = cargarAutoCache() || {temp:50, hum:15}; a.hum = v; guardarAutoCache(a); }
+    });
+  }
+
+  function hayEdicionEnCurso(){
+    var a = document.activeElement;
+    var escribiendo = a && a.tagName === 'INPUT' && (a.closest('#editorPerfil') || a.closest('#autoCard'));
+    return !$('modalConfirmar').hidden || !!escribiendo;
   }
 
   function renderEditor(){
     var ed = $('editorPerfil');
     ed.hidden = false;
     var p = perfiles[perfilSeleccionado];
-    var campos = [
-      {campo:'Temp', prop:'temp', valor:(p.temp===null || p.temp===undefined) ? null : Math.round(p.temp), unidad:'C', topic:topics.cmdTemp},
-      {campo:'Hum', prop:'hum', valor:(p.hum===null || p.hum===undefined) ? null : Math.round(p.hum), unidad:'%', topic:topics.cmdHume},
-      {campo:'Tiempo', prop:'tiempo', valor:(p.tiempo===null || p.tiempo===undefined) ? null : p.tiempo, unidad:'s', topic:topics.cmdTiempo}
-    ];
     ed.innerHTML = '';
+    var campos = [
+      {nombre:'Temp',   valor:p.temp,   unidad:'°C', tipo:'temp',   topic:function(){ return topics.cmdTemp; }},
+      {nombre:'Hum',    valor:p.hum,    unidad:'%',  tipo:'hum',    topic:function(){ return topics.cmdHume; }},
+      {nombre:'Tiempo', valor:p.tiempo, unidad:'',   tipo:'tiempo', topic:function(){ return topics.cmdTiempo; }}
+    ];
     campos.forEach(function(c){
       var fila = document.createElement('div');
       fila.className = 'campo';
       fila.innerHTML =
-        '<span class="nombre">'+c.campo+'</span>' +
+        '<span class="nombre">' + c.nombre + '</span>' +
         '<div class="stepper">' +
           '<button type="button" data-dir="-1">&minus;</button>' +
-          '<input class="mono" type="number" placeholder="'+(c.valor===null?'--':c.valor)+'">' +
+          '<input class="mono' + (c.tipo === 'tiempo' ? ' tiempo' : '') + '" type="text" inputmode="decimal">' +
           '<button type="button" data-dir="1">+</button>' +
-          '<span class="unidad">'+c.unidad+'</span>' +
+          (c.unidad ? '<span class="unidad">' + c.unidad + '</span>' : '') +
         '</div>';
-      var input = fila.querySelector('input');
-      crearControlValor(input, fila, RANGOS[c.campo], pasoDe(c.campo), c.valor, function(){ return c.topic; }, c.campo, p.nombre, function(v){
-        p[c.prop] = v;
-        guardarPerfilesCache(perfiles);
-      }, false);
       ed.appendChild(fila);
+      var input = fila.querySelector('input');
+      var esTiempo = c.tipo === 'tiempo';
+      var rango = c.tipo === 'temp' ? RANGO_TEMP : (c.tipo === 'hum' ? RANGO_HUM : RANGO_TIEMPO);
+      var prop = c.tipo === 'temp' ? 'temp' : (c.tipo === 'hum' ? 'hum' : 'tiempo');
+      crearControl({
+        input:input, botones:fila, min:rango[0], max:rango[1],
+        paso: esTiempo ? pasoTiempo : pasoFijo,
+        leer: esTiempo ? parsearTiempo : numero,
+        mostrar: esTiempo ? formatearTiempo : mostrarNumero,
+        valorInicial: c.valor, topic: c.topic, nombre: c.nombre, detalle: p.nombre,
+        requiereConfirmacion: false,
+        alConfirmar: function(v){ p[prop] = v; guardarPerfilesCache(perfiles); }
+      });
     });
 
-    var btnIniciar = document.createElement('button');
-    btnIniciar.className = 'btnfull';
-    btnIniciar.textContent = 'Iniciar ' + p.nombre;
-    btnIniciar.onclick = function(){
-      if(client && client.connected){ client.publish(topics.cmdAccion, 'START'); agregarFeed('Comando: iniciar ' + p.nombre); }
+    var cont = document.createElement('div');
+    cont.className = 'acciones';
+    cont.id = 'accionesPerfil';
+    ed.appendChild(cont);
+    renderAcciones();
+
+    var btnSalir = document.createElement('button');
+    btnSalir.className = 'btnfull secundario';
+    btnSalir.textContent = 'Salir';
+    btnSalir.onclick = salirDeEdicion;
+    ed.appendChild(btnSalir);
+  }
+
+  function crearBoton(texto, clase, alPulsar){
+    var b = document.createElement('button');
+    b.className = 'btnfull' + (clase ? ' ' + clase : '');
+    b.textContent = texto;
+    b.onclick = alPulsar;
+    return b;
+  }
+  function textoAccion(t){
+    var n = document.createElement('p');
+    n.className = 'nota';
+    n.textContent = t;
+    return n;
+  }
+
+  // Acciones del perfil segun el estado real del equipo (Iniciar / Pausar-Continuar / Detener)
+  function renderAcciones(){
+    var cont = $('accionesPerfil');
+    if(!cont || $('editorPerfil').hidden) return;
+    var p = perfiles[perfilSeleccionado];
+    var hayCiclo = !!ultimo.ciclo;
+    var esAuto = !!ultimo.modoAuto;
+    var esEsteActivo = hayCiclo && !esAuto && ultimo.perfilActivo === p.nombre;
+    var clave = [hayCiclo, esAuto, esEsteActivo, !!ultimo.pausado, p.nombre].join('|');
+    if(cont.dataset.clave === clave) return;
+    cont.dataset.clave = clave;
+    cont.innerHTML = '';
+
+    if(hayCiclo && esAuto){
+      cont.appendChild(textoAccion('Hay un modo automático en curso. Controlalo desde AUTOMATICO.'));
+      return;
+    }
+    if(hayCiclo && !esEsteActivo){
+      cont.appendChild(textoAccion('Hay un secado en curso con ' + (ultimo.perfilActivo || 'otro perfil') + '. Detenelo para iniciar este perfil.'));
+      return;
+    }
+    if(!hayCiclo){
+      cont.appendChild(crearBoton('Iniciar ' + p.nombre, '', function(){
+        if(client && client.connected){ client.publish(topics.cmdAccion, 'START'); agregarFeed('Comando: iniciar ' + p.nombre); }
+      }));
+      return;
+    }
+    var fila = document.createElement('div');
+    fila.className = 'par';
+    fila.appendChild(crearBoton(ultimo.pausado ? 'Continuar' : 'Pausar', 'secundario', function(){
+      var estabaPausado = !!ultimo.pausado;
+      pedirConfirmacion(estabaPausado ? '¿Continuar el secado?' : '¿Pausar el secado en curso?', function(){
+        if(client && client.connected){
+          client.publish(topics.cmdAccion, estabaPausado ? 'RESUME' : 'PAUSE');
+          agregarFeed('Comando: ' + (estabaPausado ? 'continuar' : 'pausar') + ' secado');
+        }
+      });
+    }));
+    fila.appendChild(crearBoton('Detener', 'peligro', function(){
+      pedirConfirmacion('¿Detener el secado en curso?', function(){
+        if(client && client.connected){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: parar'); }
+      });
+    }));
+    cont.appendChild(fila);
+  }
+
+  function salirDeEdicion(){
+    $('editorPerfil').hidden = true;
+    $('autoCard').hidden = true;
+    editandoCampo = null;
+    $('selectorModo').value = '';
+    if(ultimo.ciclo && ultimo.modoAuto) autoOculto = true;
+  }
+
+  function abrirPerfil(i){
+    perfilSeleccionado = i;
+    editandoCampo = 'Temp';
+    $('autoCard').hidden = true;
+    renderEditor();
+  }
+
+  $('selectorModo').addEventListener('change', function(e){
+    var v = e.target.value;
+    if(v === '' || v === 'salir'){
       salirDeEdicion();
-    };
-    ed.appendChild(btnIniciar);
+    } else if(v === 'auto'){
+      $('editorPerfil').hidden = true;
+      editandoCampo = null;
+      autoOculto = false;
+      $('autoCard').hidden = false;
+    } else {
+      var i = parseInt(v, 10);
+      var nombre = NOMBRES[i];
+      if(ultimo.ciclo && !ultimo.modoAuto && ultimo.perfilActivo === nombre){ abrirPerfil(i); return; }
+      pedirConfirmacion('¿Cambiar el perfil activo a ' + nombre + '?', function(){
+        abrirPerfil(i);
+        if(client && client.connected) client.publish(topics.cmdPerfil, nombre);
+      }, function(){ e.target.value = ''; });
+    }
+  });
 
-    var btnSalirEditor = document.createElement('button');
-    btnSalirEditor.className = 'btnfull secundario';
-    btnSalirEditor.textContent = 'Salir';
-    btnSalirEditor.onclick = salirDeEdicion;
-    ed.appendChild(btnSalirEditor);
+  // Panel automatico: iniciar / detener / pausar / continuar
+  function actualizarPanelAuto(){
+    var autoActivo = !!(ultimo.ciclo && ultimo.modoAuto);
+    $('btnAuto').textContent = autoActivo ? 'Detener' : 'Iniciar automático';
+    $('btnAutoPausa').hidden = !autoActivo;
+    $('btnAutoPausa').textContent = ultimo.pausado ? 'Continuar' : 'Pausar';
+    if(!autoActivo) autoOculto = false;
+    if(autoActivo && !autoOculto && !hayEdicionEnCurso()){
+      $('selectorModo').value = 'auto';
+      $('editorPerfil').hidden = true;
+      $('autoCard').hidden = false;
+    }
   }
 
-  $('btnParar').onclick = function(){
-    pedirConfirmacion('¿Detener el secado en curso?', function(){
-      if(client && client.connected){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: parar'); }
-    });
-  };
-  function silenciarAlarma(){
-    if(client && client.connected){ client.publish(topics.cmdSilenciar, 'SILENCIAR'); agregarFeed('Comando: silenciar alarma'); }
-  }
-  $('btnAlarma').onclick = silenciarAlarma;
-  $('btnSilenciarAlarmaModal').onclick = silenciarAlarma;
   $('btnAuto').onclick = function(){
     if(!client || !client.connected) return;
-    var enAuto = $('btnAuto').textContent === 'Detener';
-    var mensaje = enAuto ? '¿Detener el modo automático?' : '¿Iniciar el modo automático?';
-    pedirConfirmacion(mensaje, function(){
+    var enAuto = ultimo.ciclo && ultimo.modoAuto;
+    if(!enAuto && ultimo.ciclo){ agregarFeed('Hay un secado en curso. Detenelo antes de iniciar el automático.'); return; }
+    pedirConfirmacion(enAuto ? '¿Detener el modo automático?' : '¿Iniciar el modo automático?', function(){
       if(enAuto){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: detener automático'); }
       else { client.publish(topics.cmdAccion, 'START_AUTO'); agregarFeed('Comando: iniciar automático'); }
     });
   };
+  $('btnAutoPausa').onclick = function(){
+    if(!client || !client.connected) return;
+    var estabaPausado = !!ultimo.pausado;
+    pedirConfirmacion(estabaPausado ? '¿Continuar el modo automático?' : '¿Pausar el modo automático?', function(){
+      client.publish(topics.cmdAccion, estabaPausado ? 'RESUME' : 'PAUSE');
+      agregarFeed('Comando: ' + (estabaPausado ? 'continuar' : 'pausar') + ' automático');
+    });
+  };
   $('btnSalirAuto').onclick = salirDeEdicion;
 
-  var autoCache = cargarAutoCache();
-  function guardarValorAuto(campo, v){
-    var actual = cargarAutoCache() || {temp:50, hum:15};
-    actual[campo] = v;
-    guardarAutoCache(actual);
+  // ---------- Estado, tiempo y alarmas ----------
+  function actualizarEstadoPill(recienFinalizado){
+    var pill = $('estadoPill');
+    if(ultimo.enAlarma){ pill.className = 'pill alarma'; pill.textContent = 'ALARMA'; }
+    else if(recienFinalizado){ pill.className = 'pill finalizo'; pill.textContent = 'FINALIZO'; }
+    else if(ultimo.estado === 'PAUSADO' || ultimo.estado === 'AUTO PAUSADO'){ pill.className = 'pill pausa'; pill.textContent = ultimo.estado; }
+    else if(ultimo.estado === 'SECANDO'){ pill.className = 'pill on'; pill.textContent = 'ENCENDIDO'; }
+    else if(ultimo.estado === 'AUTO'){ pill.className = 'pill on'; pill.textContent = 'AUTO'; }
+    else if(ultimo.estado === 'CORTADO'){ pill.className = 'pill finalizo'; pill.textContent = 'CORTADO'; }
+    else if(ultimo.ciclo){ pill.className = 'pill on'; pill.textContent = ultimo.modoAuto ? 'AUTO' : 'ENCENDIDO'; }
+    else { pill.className = 'pill off'; pill.textContent = 'APAGADO'; }
+    $('btnAlarma').className = 'btnfull alarma' + (ultimo.enAlarma ? ' activa' : '');
   }
-  var controlAutoTemp = crearControlValor($('autoTempInput'), $('stepAutoTemp'), [10,90], 1, (autoCache ? autoCache.temp : 50), function(){ return topics.cmdAutoTemp; }, 'Temp', 'automático', function(v){ guardarValorAuto('temp', v); });
-  var controlAutoHum = crearControlValor($('autoHumInput'), $('stepAutoHum'), [5,60], 1, (autoCache ? autoCache.hum : 15), function(){ return topics.cmdAutoHume; }, 'Hum', 'automático', function(v){ guardarValorAuto('hum', v); });
 
+  function actualizarBannerAlarma(){ $('modalAlarma').hidden = !ultimo.enAlarma; }
+
+  function actualizarAvisoSensores(){
+    var partes = [];
+    if(ultimo.sensorTemp) partes.push('Falla sensor de temperatura');
+    if(ultimo.sensorHum) partes.push('Falla sensor de humedad');
+    var el = $('avisoSensor');
+    el.hidden = partes.length === 0;
+    el.textContent = partes.join(' · ');
+  }
+
+  function restanteActual(){
+    if(ultimo.pausado) return ultimo.tiempo;
+    var transcurrido = Math.floor((Date.now() - ultimo.recibidoEn) / 1000);
+    return Math.max(0, ultimo.tiempo - transcurrido);
+  }
+
+  function actualizarBarra(restante){
+    var fill = $('progresoFill');
+    if(!ultimo.ciclo || ultimo.modoAuto || !ultimo.total){ fill.style.width = '0%'; fill.style.background = 'transparent'; return; }
+    var pct = Math.max(0, Math.min(100, (restante / ultimo.total) * 100));
+    fill.style.width = pct + '%';
+    fill.style.background = 'var(--temp)';
+  }
+
+  function actualizarTiempo(){
+    var recienFinalizado = !ultimo.ciclo && finalizadoDesde && (Date.now() - finalizadoDesde < TIEMPO_FIN_A_AMBIENTE_MS);
+    actualizarEstadoPill(recienFinalizado);
+    actualizarBannerAlarma();
+    if(ultimo.ciclo && ultimo.modoAuto){
+      $('tiempoTxt').textContent = ultimo.pausado ? 'PAUSA' : 'CONTINUO';
+      $('tiempoLabel').textContent = ultimo.pausado ? 'Automático pausado' : 'Modo automático';
+      actualizarBarra(0);
+      return;
+    }
+    if(!ultimo.ciclo){
+      $('tiempoTxt').textContent = '--:--';
+      var etiqueta = 'Sin ciclo activo';
+      if(recienFinalizado || ultimo.causaParada === 'FIN TIEMPO') etiqueta = 'Secado finalizado';
+      else if(ultimo.causaParada) etiqueta = 'Último corte: ' + ultimo.causaParada;
+      $('tiempoLabel').textContent = etiqueta;
+      actualizarBarra(0);
+      return;
+    }
+    var restante = restanteActual();
+    $('tiempoTxt').textContent = fmtHMS(restante);
+    $('tiempoLabel').textContent = ultimo.pausado ? 'Pausado · tiempo restante' : 'Tiempo restante';
+    actualizarBarra(restante);
+  }
+  setInterval(actualizarTiempo, 1000);
+
+
+  // ---------- Pantalla del equipo (mismo diseno que el firmware) ----------
+  var pantalla = $('pantallaEquipo');
+  // Se dibuja a 4x de resolucion y se escala con suavizado: el texto y los iconos quedan nitidos
+  var ESCALA = 4;
+  if(pantalla){ pantalla.width = 160 * ESCALA; pantalla.height = 128 * ESCALA; }
+  var ctx = (pantalla && pantalla.getContext) ? pantalla.getContext('2d') : null;
+  if(ctx) ctx.setTransform(ESCALA, 0, 0, ESCALA, 0, 0);
+  var fase = {calef:0, vent:0, gota:0};
+
+  function txt(s, x, y, tam, color){
+    ctx.font = FUENTE[tam]; ctx.fillStyle = color; ctx.textBaseline = 'top';
+    ctx.fillText(s, x, y);
+  }
+  function centrado(s, y, tam, color){
+    ctx.font = FUENTE[tam];
+    var w = ctx.measureText(s).width;
+    var x = Math.max(8, 8 + (110 - w) / 2);
+    txt(s, Math.round(x), y, tam, color);
+  }
+
+  function iconoCalefactor(x0, y0, encendido){
+    var c = encendido ? COLOR.error : COLOR.gris;
+    ctx.fillStyle = c;
+    ctx.fillRect(x0 + 2, y0 + 17, 18, 2);
+    ctx.strokeStyle = c; ctx.lineWidth = 1;
+    for(var i = 0; i < 3; i++){
+      var xb = x0 + 5 + i * 6;
+      ctx.beginPath(); ctx.moveTo(xb + 0.5, y0 + 15.5);
+      for(var y = 15; y >= 1; y--){
+        var x = xb + Math.sin(fase.calef + i * 1.3 + y * 0.7) * 1.5;
+        ctx.lineTo(x + 0.5, y0 + y + 0.5);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function iconoVentilador(x0, y0, girando){
+    var c = girando ? COLOR.linea : COLOR.grisOscuro;
+    var cx = x0 + 11, cy = y0 + 11, r = 10;
+    ctx.fillStyle = c;
+    for(var k = 0; k < 3; k++){
+      var a = fase.vent + k * 2.0944;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a - 0.35) * r, cy + Math.sin(a - 0.35) * r);
+      ctx.lineTo(cx + Math.cos(a + 0.35) * r * 0.7, cy + Math.sin(a + 0.35) * r * 0.7);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = c; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = COLOR.texto;
+    ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function iconoGota(x0, y0, activa, color){
+    ctx.fillStyle = activa ? color : COLOR.gris;
+    ctx.beginPath(); ctx.moveTo(x0 + 11, y0 + 1); ctx.lineTo(x0 + 4, y0 + 14); ctx.lineTo(x0 + 18, y0 + 14); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(x0 + 11, y0 + 14, 7, 0, Math.PI * 2); ctx.fill();
+    if(activa){
+      ctx.fillStyle = COLOR.texto;
+      for(var b = 0; b < 2; b++){
+        var by = 19 - ((fase.gota + b * 4.5) % 9);
+        var bx = (b === 0) ? 8 : 13;
+        ctx.beginPath(); ctx.arc(x0 + bx, y0 + by, 1, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
+  function textoTiempoPrincipal(){
+    if(ultimo.sensorTemp) return 'FALLA SENSOR TEMP';
+    if(ultimo.sensorHum) return 'FALLA SENSOR HUM';
+    if(ultimo.enAlarma && ultimo.ciclo) return 'ALERTA ' + (ultimo.causaAlarma || '');
+    if(ultimo.modoAuto) return ultimo.pausado ? 'PAUSADO AUTO' : 'Modo: AUTO CONTINUO';
+    if(ultimo.ciclo) return (ultimo.pausado ? 'PAUSADO ' : 'Rest: ') + fmtHMS(restanteActual());
+    if(ultimo.causaParada) return 'Corte: ' + ultimo.causaParada;
+    var p = perfilDeTelemetria();
+    return 'Tiempo: ' + formatearTiempo(p ? p.tiempo : 0);
+  }
+
+  function colorGotaAmbiente(){
+    if(ultimo.hum > ultimo.humSet + MARGEN_HUM_ALTA) return COLOR.alta;
+    if(ultimo.hum < ultimo.humSet - MARGEN_HUM_BAJA) return COLOR.falta;
+    return COLOR.estable;
+  }
+
+  function pintarPrincipal(){
+    var auto = ultimo.modoAuto === 1;
+    txt(auto ? 'AUTO' : (ultimo.perfilActivo || '--'), 4, 2, 2, COLOR.destacado);
+    txt(ultimo.pausado ? 'PAUSADO' : (ultimo.ciclo ? 'SECANDO' : 'LISTO'), 106, 10, 1, COLOR.destacado);
+    ctx.fillStyle = COLOR.linea; ctx.fillRect(0, 24, 160, 1);
+    txt(ultimo.sensorTemp ? 'T:ERR/' + Math.round(ultimo.tempSet) + '°C'
+                          : 'T:' + Math.round(ultimo.temp) + '/' + Math.round(ultimo.tempSet) + '°C',
+        4, 31, 2, ultimo.sensorTemp ? COLOR.error : COLOR.texto);
+    txt(ultimo.sensorHum ? 'H:ERR/' + Math.round(ultimo.humSet) + '%'
+                         : 'H:' + Math.round(ultimo.hum) + '/' + Math.round(ultimo.humSet) + '%',
+        4, 51, 2, ultimo.sensorHum ? COLOR.error : COLOR.texto);
+    iconoCalefactor(136, 30, ultimo.pwmCal > 0);
+    iconoVentilador(136, 49, ultimo.pwmVent > 0);
+    txt(textoTiempoPrincipal(), 4, 74, 1, COLOR.texto);
+    ctx.strokeStyle = COLOR.texto; ctx.lineWidth = 1;
+    ctx.strokeRect(4.5, 98.5, 151, 11);
+    if(ultimo.ciclo && !auto && ultimo.total > 0){
+      var pct = Math.max(0, Math.min(1, restanteActual() / ultimo.total));
+      ctx.fillStyle = COLOR.error;
+      ctx.fillRect(5, 99, Math.round(150 * pct), 10);
+    }
+  }
+
+  function pintarAmbiente(){
+    txt('== AMBIENTE ==', 38, 4, 1, COLOR.texto);
+    ctx.fillStyle = COLOR.linea; ctx.fillRect(0, 16, 160, 1);
+    centrado(ultimo.sensorTemp ? 'ERR' : Math.round(ultimo.temp) + '°C', 27, 3, ultimo.sensorTemp ? COLOR.error : COLOR.texto);
+    centrado(Math.round(ultimo.hum) + ' %', 63, 3, COLOR.texto);
+    iconoCalefactor(128, 30, ultimo.pwmCal > 0);
+    iconoGota(128, 62, ultimo.ciclo === 1, colorGotaAmbiente());
+  }
+
+  function pintarPantalla(){
+    if(!ctx) return;
+    ctx.fillStyle = COLOR.fondo;
+    ctx.fillRect(0, 0, 160, 128);
+    if(!ultimo.recibido){
+      txt('SIN DATOS', 40, 56, 2, COLOR.gris);
+      return;
+    }
+    if(ultimo.vistaAmb === 1) pintarAmbiente(); else pintarPrincipal();
+  }
+
+  function animarPantalla(){
+    var dt = 0.04;
+    if(ultimo.pwmCal > 0){
+      fase.calef += (5 + (ultimo.pwmCal / 255) * 10) * dt;
+      if(fase.calef > Math.PI * 2) fase.calef -= Math.PI * 2;
+    }
+    if(ultimo.pwmVent > 0){
+      fase.vent += (ultimo.pwmVent / 255) * 900 * (Math.PI / 180) * dt;
+      if(fase.vent > Math.PI * 2) fase.vent -= Math.PI * 2;
+    }
+    if(ultimo.ciclo) fase.gota = (fase.gota + 12 * dt) % 9;
+    pintarPantalla();
+  }
+  setInterval(animarPantalla, 40);
+
+  // ---------- Configuracion de conexion ----------
   function abrirConfig(){
     $('cfgHost').value = cfg.host || '';
     $('cfgDev').value = cfg.dev || '1';
@@ -913,11 +1157,36 @@
     };
     guardarConfigLS(cfg);
     $('modalConfig').hidden = true;
+    perfilesCache = cargarPerfilesCache();
+    if(perfilesCache) perfiles = perfilesCache;
     conectar();
   };
 
+  $('btnDescargar').onclick = function(){
+    var blob = new Blob([HTML_ORIGINAL], {type: 'text/html;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'SecaFil.html';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1500);
+    agregarFeed('Página descargada: SecaFil.html');
+  };
+
+  function silenciarAlarma(){
+    if(client && client.connected){ client.publish(topics.cmdSilenciar, 'SILENCIAR'); agregarFeed('Comando: silenciar alarma'); }
+  }
+  $('btnAlarma').onclick = silenciarAlarma;
+  $('btnSilenciarAlarmaModal').onclick = silenciarAlarma;
+  $('btnParar').onclick = function(){
+    pedirConfirmacion('¿Detener el secado en curso?', function(){
+      if(client && client.connected){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: parar'); }
+    });
+  };
+
+  iniciarControlesAuto();
   actualizarTiempo();
-  if(cfg.user){ conectar(); } else { setConn('bad','Sin configurar'); abrirConfig(); }
+  pintarPantalla();
+  if(cfg.user){ conectar(); } else { setConn('bad', 'Sin configurar'); abrirConfig(); }
 })();
 </script>
 
