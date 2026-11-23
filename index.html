@@ -1136,7 +1136,8 @@
     centrado(ultimo.sensorTemp ? 'ERR' : Math.round(ultimo.temp) + '°C', 27, 3, ultimo.sensorTemp ? COLOR.error : COLOR.texto);
     centrado(Math.round(ultimo.hum) + ' %', 63, 3, COLOR.texto);
     iconoCalefactor(128, 30, ultimo.pwmCal > 0);
-    iconoGota(128, 62, ultimo.ciclo === 1, colorGotaAmbiente());
+    // Siempre animada en ambiente: el color indica el estado de la humedad (estable / alta / falta)
+    iconoGota(128, 62, true, colorGotaAmbiente());
   }
 
   // ---------- Pantallas de alarma (espejo de SecaFil_6.cpp) ----------
@@ -1185,8 +1186,7 @@
       centrarTexto('HUMEDAD', 52, 2, COLOR.texto);
     }
     centrarTexto('Revisar el sensor', 90, 1, COLOR.destacado);
-    centrarTexto('Aviso cada 30 s', 102, 1, COLOR.texto);
-    centrarTexto('Pulse para cerrar', 114, 1, COLOR.texto);
+    centrarTexto('Pulse para silenciar', 108, 1, COLOR.texto);
   }
 
   function pintarAlarmaFin(){
@@ -1223,7 +1223,7 @@
       fase.vent += (ultimo.pwmVent / 255) * 900 * (Math.PI / 180) * dt;
       if(fase.vent > Math.PI * 2) fase.vent -= Math.PI * 2;
     }
-    if(ultimo.ciclo) fase.gota = (fase.gota + 12 * dt) % 9;
+    fase.gota = (fase.gota + 12 * dt) % 9;
     pintarPantalla();
   }
   setInterval(animarPantalla, 40);
@@ -1231,7 +1231,7 @@
   // ---------- Sonido de alarmas (mismos tiempos que el firmware) ----------
   // Cambiar estos valores modifica el sonido de la web; el firmware usa las
   // constantes ALARMA_* de SecaFil_6.cpp y deben quedar iguales.
-  var ALARMA_SONIDO = {frecuenciaHz:3400, pitidos:3, pitidoOnMs:150, periodoMs:300, repeticionS:30, volumen:0.12};
+  var ALARMA_SONIDO = {frecuenciaHz:3400, pitidos:3, pitidoOnMs:450, periodoMs:700, pausaRafagaMs:1000, volumen:0.12};
   var FIN_SONIDO = {agudoHz:2700, graveHz:2400, pasoMs:180};
   var audioCtx = null, audioOsc = null, audioGan = null, sonando = false;
   var rafagaEnCurso = false, rafagaSonando = false, rafagaInicio = 0, rafagaProxima = 0;
@@ -1270,7 +1270,7 @@
     rafagaProxima = Date.now();   // suena enseguida al aparecer la alarma
   }
 
-  // Igual que sonarRafagaAlarma() del firmware: 3 pitidos y repeticion cada 30 s
+  // Igual que sonarRafagaAlarma() del firmware: 3 pitidos que se repiten hasta silenciar o resolver la alarma
   function sonarAlarmasWeb(){
     var p = ultimo.pantallaAlarma;
     if(p === 'FIN'){
@@ -1294,7 +1294,7 @@
     if(t >= duracion){
       silenciarSonido();
       rafagaEnCurso = false;
-      rafagaProxima = rafagaInicio + ALARMA_SONIDO.repeticionS * 1000;
+      rafagaProxima = ahora + ALARMA_SONIDO.pausaRafagaMs;
       return;
     }
     var enPitido = Math.floor(t / ALARMA_SONIDO.periodoMs) < ALARMA_SONIDO.pitidos &&
