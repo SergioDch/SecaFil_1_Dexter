@@ -430,7 +430,7 @@
     recibido:false, ciclo:0, modoAuto:0, pausado:0, estado:'', perfilActivo:'', causaParada:'',
     tiempo:0, recibidoEn:0, total:0, temp:0, hum:0, tempSet:0, humSet:0,
     sensorTemp:false, sensorHum:false, pwmCal:0, pwmVent:0, vistaAmb:1,
-    enAlarma:false, causaAlarma:null, alarmaActiva:false
+    enAlarma:false, causaAlarma:null, alarmaActiva:false, pantallaAlarma:'NINGUNA', causaCond:''
   };
   var ultimoCicloVisto = 0, cicloTotalObservado = 0, finalizadoDesde = 0, ultimoMensajeEn = 0;
 
@@ -595,16 +595,16 @@
     ultimo.pwmVent = Number(d.pwm_ventilador) || 0;
     ultimo.vistaAmb = (d.vista_ambiente === undefined) ? 1 : (d.vista_ambiente ? 1 : 0);
 
+    var pantallaNueva = d.pantalla_alarma || 'NINGUNA';
+    if(pantallaNueva !== ultimo.pantallaAlarma && (pantallaNueva === 'CONDICION' || pantallaNueva === 'SENSOR')) reiniciarRafagaWeb();
+    ultimo.pantallaAlarma = pantallaNueva;
+    ultimo.causaCond = d.causa_alarma || '';
     var alarmaAnterior = ultimo.enAlarma;
-    ultimo.enAlarma = d.alarma !== 'NINGUNA';
+    ultimo.enAlarma = d.alarma !== 'NINGUNA' || pantallaNueva !== 'NINGUNA';
     ultimo.alarmaActiva = ultimo.enAlarma;
     if(ultimo.enAlarma && !alarmaAnterior) agregarFeed('[ALARMA] Se activó: ' + (d.causa_alarma || 'condición no especificada') + '.');
     else if(!ultimo.enAlarma && alarmaAnterior) agregarFeed('[ALARMA] Se desactivó (' + (ultimo.causaAlarma || 'condición anterior') + ').');
     if(ultimo.enAlarma) ultimo.causaAlarma = d.causa_alarma || null;
-    ultimo.alarmaFin = ultimo.enAlarma && d.causa_alarma === 'Secado finalizado';
-    ultimo.alertaCond = d.alerta_cond || '';
-    // Mismo aviso sonoro que el equipo: al aparecer la alarma y cada 30 s mientras siga
-    if(ultimo.enAlarma && !alarmaAnterior){ ultimo.alarmaDesde = Date.now(); ultimo.ultimoPitido = Date.now(); pitidoAlerta(); }
     $('alarmaCausa').textContent = 'Motivo: ' + (d.causa_alarma || 'no especificado');
 
     var pInfo = perfilDeTelemetria();
@@ -621,6 +621,7 @@
     actualizarPanelAuto();
     actualizarAvisoSensores();
     renderAcciones();
+    $('btnParar').disabled = !ultimo.ciclo;
   }
 
   // ---------- Tiempo: mismos pasos y formato que el firmware ----------
@@ -840,7 +841,7 @@
     }
     if(!hayCiclo){
       cont.appendChild(crearBoton('Iniciar ' + p.nombre, '', function(){
-        if(client && client.connected){ client.publish(topics.cmdAccion, 'START'); agregarFeed('Comando: iniciar ' + p.nombre); }
+        if(client && client.connected){ client.publish(topics.cmdPerfil, p.nombre); client.publish(topics.cmdAccion, 'START'); agregarFeed('Comando: iniciar ' + p.nombre); }
       }));
       return;
     }
@@ -946,40 +947,6 @@
   }
 
   function actualizarBannerAlarma(){ $('modalAlarma').hidden = !ultimo.enAlarma; }
-
-  // ---------- Sonido de alarma (igual que el buzzer: ti, ti, ti a 3500 Hz cada 300 ms) ----------
-  var ALERTA_FREQ = 3500, ALERTA_BEEP_ON_MS = 150, ALERTA_BEEP_PERIODO_MS = 300, ALERTA_BEEPS = 3;
-  var ALERTA_REPETIR_MS = 30000, ALERTA_ALTERNA_MS = 300, ALARMA_COND_PASO_MS = 300, ALARMA_FIN_PASO_MS = 180;
-  var audioCtx = null;
-  function desbloquearAudio(){
-    try {
-      if(!audioCtx){ var AC = window.AudioContext || window.webkitAudioContext; if(AC) audioCtx = new AC(); }
-      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    } catch(e){}
-  }
-  // El navegador solo deja sonar despues de un toque/clic del usuario en la pagina
-  document.addEventListener('click', desbloquearAudio);
-  document.addEventListener('touchstart', desbloquearAudio);
-  function pitidoAlerta(){
-    try {
-      if(!audioCtx || audioCtx.state !== 'running') return;
-      var t0 = audioCtx.currentTime + 0.02;
-      for(var i = 0; i < ALERTA_BEEPS; i++){
-        var osc = audioCtx.createOscillator(), g = audioCtx.createGain();
-        osc.type = 'square'; osc.frequency.value = ALERTA_FREQ;
-        g.gain.value = 0.08;
-        osc.connect(g); g.connect(audioCtx.destination);
-        var ini = t0 + i * ALERTA_BEEP_PERIODO_MS / 1000;
-        osc.start(ini); osc.stop(ini + ALERTA_BEEP_ON_MS / 1000);
-      }
-    } catch(e){}
-  }
-  setInterval(function(){
-    if(ultimo.enAlarma && !ultimo.alarmaFin && ultimo.ultimoPitido && Date.now() - ultimo.ultimoPitido >= ALERTA_REPETIR_MS){
-      ultimo.ultimoPitido = Date.now();
-      pitidoAlerta();
-    }
-  }, 1000);
 
   function actualizarAvisoSensores(){
     var partes = [];
@@ -1099,16 +1066,37 @@
     }
   }
 
-  function textoTiempoPrincipal(){
-    if(ultimo.sensorTemp) return 'FALLA SENSOR TEMP';
-    if(ultimo.sensorHum) return 'FALLA SENSOR HUM';
-    // Igual que el TFT: alterna "ALERTA ..." y la cuenta regresiva cada 300 ms
-    if(ultimo.alertaCond && ultimo.ciclo && Math.floor(Date.now() / ALERTA_ALTERNA_MS) % 2 === 0) return 'ALERTA ' + ultimo.alertaCond;
-    if(ultimo.modoAuto) return ultimo.pausado ? 'PAUSADO AUTO' : 'Modo: AUTO CONTINUO';
-    if(ultimo.ciclo) return (ultimo.pausado ? 'PAUSADO ' : 'Rest: ') + fmtHMS(restanteActual());
-    if(ultimo.causaParada) return 'Corte: ' + ultimo.causaParada;
-    var p = perfilDeTelemetria();
-    return 'Tiempo: ' + formatearTiempo(p ? p.tiempo : 0);
+  // Causas de la alarma de condicion: "TEMP MAX", "HUM MIN" o "TEMP MAX y HUM MIN"
+  function causasAlarmaCondicion(){
+    var t = '', h = '';
+    var partes = (ultimo.causaCond || '').split(' y ');
+    for(var i = 0; i < partes.length; i++){
+      if(partes[i].indexOf('TEMP') === 0) t = partes[i];
+      else if(partes[i].indexOf('HUM') === 0) h = partes[i];
+    }
+    return {temp:t, hum:h};
+  }
+
+  // Fila de tiempo principal: linea 1 = aviso o estado, linea 2 = cuenta regresiva si hay aviso
+  function filaTiempoPrincipal(){
+    var causas = causasAlarmaCondicion();
+    var hayAlerta = ultimo.ciclo && (causas.temp || causas.hum);
+    var l1;
+    if(ultimo.sensorTemp) l1 = 'FALLA SENSOR TEMP';
+    else if(ultimo.sensorHum) l1 = 'FALLA SENSOR HUM';
+    else if(hayAlerta) l1 = ('ALERTA ' + causas.temp + ' ' + causas.hum).replace(/\s+$/, '');
+    else if(ultimo.modoAuto) l1 = ultimo.pausado ? 'PAUSADO AUTO' : 'Modo: AUTO CONTINUO';
+    else if(ultimo.ciclo) l1 = (ultimo.pausado ? 'PAUSADO ' : 'Rest: ') + fmtHMS(restanteActual());
+    else if(ultimo.causaParada) l1 = 'Corte: ' + ultimo.causaParada;
+    else { var p = perfilDeTelemetria(); l1 = 'Tiempo: ' + formatearTiempo(p ? p.tiempo : 0); }
+
+    var l2 = '';
+    var hayAviso = ultimo.sensorTemp || ultimo.sensorHum || hayAlerta;
+    if(hayAviso){
+      if(ultimo.modoAuto) l2 = 'MODO AUTO';
+      else if(ultimo.ciclo) l2 = (ultimo.pausado ? 'PAUSADO ' : 'Rest: ') + fmtHMS(restanteActual());
+    }
+    return {l1:l1, l2:l2};
   }
 
   function colorGotaAmbiente(){
@@ -1130,7 +1118,9 @@
         4, 51, 2, ultimo.sensorHum ? COLOR.error : COLOR.texto);
     iconoCalefactor(136, 30, ultimo.pwmCal > 0);
     iconoVentilador(136, 49, ultimo.pwmVent > 0);
-    txt(textoTiempoPrincipal(), 4, 74, 1, COLOR.texto);
+    var fila = filaTiempoPrincipal();
+    txt(fila.l1, 4, 74, 1, COLOR.texto);
+    if(fila.l2) txt(fila.l2, 4, 85, 1, COLOR.texto);
     ctx.strokeStyle = COLOR.texto; ctx.lineWidth = 1;
     ctx.strokeRect(4.5, 98.5, 151, 11);
     if(ultimo.ciclo && !auto && ultimo.total > 0){
@@ -1149,6 +1139,66 @@
     iconoGota(128, 62, ultimo.ciclo === 1, colorGotaAmbiente());
   }
 
+  // ---------- Pantallas de alarma (espejo de SecaFil_6.cpp) ----------
+  function centrarTexto(s, y, tam, color){
+    ctx.font = FUENTE[tam];
+    var w = ctx.measureText(s).width;
+    txt(s, Math.round((160 - w) / 2), y, tam, color);
+  }
+  // El titulo es lo unico que parpadea: cambia cada 250 ms
+  function tituloVisible(){ return Math.floor(Date.now() / 250) % 2 === 0; }
+
+  function pintarAlarmaCondicion(){
+    ctx.fillStyle = COLOR.error; ctx.fillRect(0, 0, 160, 128);
+    centrarTexto('ALERTA', 18, 2, tituloVisible() ? COLOR.destacado : COLOR.error);
+
+    var causas = causasAlarmaCondicion();
+    // Con dos causas, la que se muestra alterna cada 2 s
+    var mostrarTemp = causas.temp && (!causas.hum || (Math.floor(Date.now() / 2000) % 2 === 0));
+    var causa = mostrarTemp ? causas.temp : causas.hum;
+    if(causa){
+      var tam = (causa.length * 12 <= 160) ? 2 : 1;
+      centrarTexto(causa, 42 + Math.floor((16 - 8 * tam) / 2), tam, COLOR.texto);
+    }
+
+    var valores = 'T:' + Math.round(ultimo.temp) + '/' + Math.round(ultimo.tempSet) + '°C H:' +
+                  Math.round(ultimo.hum) + '/' + Math.round(ultimo.humSet) + '%';
+    centrarTexto(valores, 65, 1, COLOR.texto);
+
+    var tiempoTxt = '';
+    if(ultimo.ciclo){
+      if(ultimo.modoAuto) tiempoTxt = 'MODO AUTO';
+      else if(restanteActual() > 0) tiempoTxt = 'Rest: ' + fmtHMS(restanteActual());
+    }
+    if(tiempoTxt) centrarTexto(tiempoTxt, 87, 1, COLOR.texto);
+  }
+
+  function pintarAlarmaSensor(){
+    ctx.fillStyle = COLOR.error; ctx.fillRect(0, 0, 160, 128);
+    centrarTexto('FALLA SENSOR', 18, 2, tituloVisible() ? COLOR.destacado : COLOR.error);
+    if(ultimo.sensorTemp && ultimo.sensorHum){
+      centrarTexto('TEMPERATURA', 44, 2, COLOR.texto);
+      centrarTexto('HUMEDAD', 66, 2, COLOR.texto);
+    } else if(ultimo.sensorTemp){
+      centrarTexto('TEMPERATURA', 52, 2, COLOR.texto);
+    } else {
+      centrarTexto('HUMEDAD', 52, 2, COLOR.texto);
+    }
+    centrarTexto('Revisar el sensor', 90, 1, COLOR.destacado);
+    centrarTexto('Aviso cada 30 s', 102, 1, COLOR.texto);
+    centrarTexto('Pulse para cerrar', 114, 1, COLOR.texto);
+  }
+
+  function pintarAlarmaFin(){
+    var alterna = Math.floor(Date.now() / 180) % 2 === 0;
+    ctx.fillStyle = alterna ? COLOR.error : COLOR.fondo; ctx.fillRect(0, 0, 160, 128);
+    txt('SECADO', 44, 40, 2, COLOR.destacado);
+    txt('LISTO!', 44, 62, 2, COLOR.destacado);
+    txt('FIN DE TIEMPO', 40, 84, 1, COLOR.texto);
+    txt('Presione el boton', 29, 100, 1, COLOR.texto);
+    txt('para continuar', 38, 112, 1, COLOR.texto);
+  }
+
   function pintarPantalla(){
     if(!ctx) return;
     ctx.fillStyle = COLOR.fondo;
@@ -1157,38 +1207,10 @@
       txt('SIN DATOS', 40, 56, 2, COLOR.gris);
       return;
     }
-    if(ultimo.enAlarma){ pintarAlarma(); return; }
+    if(ultimo.pantallaAlarma === 'CONDICION') return pintarAlarmaCondicion();
+    if(ultimo.pantallaAlarma === 'SENSOR') return pintarAlarmaSensor();
+    if(ultimo.pantallaAlarma === 'FIN') return pintarAlarmaFin();
     if(ultimo.vistaAmb === 1) pintarAmbiente(); else pintarPrincipal();
-  }
-
-  // Pantalla de alarma del equipo (parpadeo rojo/negro, mismos textos que el TFT)
-  function centradoAncho(s, y, tam, color){
-    ctx.font = FUENTE[tam];
-    var w = ctx.measureText(s).width;
-    txt(s, Math.round((160 - w) / 2), y, tam, color);
-  }
-  function pintarAlarma(){
-    var paso = ultimo.alarmaFin ? ALARMA_FIN_PASO_MS : ALARMA_COND_PASO_MS;
-    var rojo = Math.floor(Date.now() / paso) % 2 === 0;
-    ctx.fillStyle = rojo ? COLOR.error : COLOR.fondo;
-    ctx.fillRect(0, 0, 160, 128);
-    if(ultimo.alarmaFin){
-      centradoAncho('SECADO', 40, 2, COLOR.destacado);
-      centradoAncho('LISTO!', 62, 2, COLOR.destacado);
-      centradoAncho('FIN DE TIEMPO', 84, 1, COLOR.texto);
-      centradoAncho('Presione el boton', 100, 1, COLOR.texto);
-      centradoAncho('para continuar', 112, 1, COLOR.texto);
-      return;
-    }
-    var causas = (ultimo.causaAlarma || '').split(' y ');
-    var causa = causas.length > 1 ? causas[Math.floor(Date.now() / (ALARMA_COND_PASO_MS * 4)) % 2] : causas[0];
-    centradoAncho('ALERTA', 25, 2, COLOR.destacado);
-    centradoAncho(causa || '', 48, 2, COLOR.destacado);
-    centradoAncho('T:' + Math.round(ultimo.temp) + '/' + Math.round(ultimo.tempSet) + '°C H:' +
-                  Math.round(ultimo.hum) + '/' + Math.round(ultimo.humSet) + '%', 80, 1, COLOR.texto);
-    var linea = '';
-    if(ultimo.ciclo) linea = ultimo.modoAuto ? 'MODO AUTO' : (restanteActual() > 0 ? 'Rest: ' + fmtHMS(restanteActual()) : '');
-    if(linea) centradoAncho(linea, 100, 1, COLOR.texto);
   }
 
   function animarPantalla(){
@@ -1205,6 +1227,82 @@
     pintarPantalla();
   }
   setInterval(animarPantalla, 40);
+
+  // ---------- Sonido de alarmas (mismos tiempos que el firmware) ----------
+  // Cambiar estos valores modifica el sonido de la web; el firmware usa las
+  // constantes ALARMA_* de SecaFil_6.cpp y deben quedar iguales.
+  var ALARMA_SONIDO = {frecuenciaHz:3400, pitidos:3, pitidoOnMs:150, periodoMs:300, repeticionS:30, volumen:0.12};
+  var FIN_SONIDO = {agudoHz:2700, graveHz:2400, pasoMs:180};
+  var audioCtx = null, audioOsc = null, audioGan = null, sonando = false;
+  var rafagaEnCurso = false, rafagaSonando = false, rafagaInicio = 0, rafagaProxima = 0;
+
+  // El navegador exige un toque en la pagina antes de permitir sonido
+  function prepararAudio(){
+    if(audioCtx){ if(audioCtx.state === 'suspended') audioCtx.resume(); return; }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    audioCtx = new AC();
+    audioOsc = audioCtx.createOscillator();
+    audioOsc.type = 'square';
+    audioOsc.frequency.value = ALARMA_SONIDO.frecuenciaHz;
+    audioGan = audioCtx.createGain();
+    audioGan.gain.value = 0;
+    audioOsc.connect(audioGan); audioGan.connect(audioCtx.destination);
+    audioOsc.start();
+  }
+  document.addEventListener('pointerdown', prepararAudio, true);
+
+  function encenderSonido(hz){
+    if(!audioGan) return;
+    sonando = true;
+    audioOsc.frequency.value = hz;
+    audioGan.gain.setTargetAtTime(ALARMA_SONIDO.volumen, audioCtx.currentTime, 0.002);
+  }
+  function silenciarSonido(){
+    rafagaSonando = false;
+    if(!audioGan || !sonando) return;
+    sonando = false;
+    audioGan.gain.setTargetAtTime(0, audioCtx.currentTime, 0.002);
+  }
+  function reiniciarRafagaWeb(){
+    silenciarSonido();
+    rafagaEnCurso = false;
+    rafagaProxima = Date.now();   // suena enseguida al aparecer la alarma
+  }
+
+  // Igual que sonarRafagaAlarma() del firmware: 3 pitidos y repeticion cada 30 s
+  function sonarAlarmasWeb(){
+    var p = ultimo.pantallaAlarma;
+    if(p === 'FIN'){
+      var agudo = Math.floor(Date.now() / FIN_SONIDO.pasoMs) % 2 === 0;
+      encenderSonido(agudo ? FIN_SONIDO.agudoHz : FIN_SONIDO.graveHz);
+      return;
+    }
+    if(p !== 'CONDICION' && p !== 'SENSOR'){
+      rafagaEnCurso = false;
+      silenciarSonido();
+      return;
+    }
+    var ahora = Date.now();
+    if(!rafagaEnCurso){
+      if(ahora < rafagaProxima) return;
+      rafagaEnCurso = true;
+      rafagaInicio = ahora;
+    }
+    var t = ahora - rafagaInicio;
+    var duracion = (ALARMA_SONIDO.pitidos - 1) * ALARMA_SONIDO.periodoMs + ALARMA_SONIDO.pitidoOnMs;
+    if(t >= duracion){
+      silenciarSonido();
+      rafagaEnCurso = false;
+      rafagaProxima = rafagaInicio + ALARMA_SONIDO.repeticionS * 1000;
+      return;
+    }
+    var enPitido = Math.floor(t / ALARMA_SONIDO.periodoMs) < ALARMA_SONIDO.pitidos &&
+                   (t % ALARMA_SONIDO.periodoMs) < ALARMA_SONIDO.pitidoOnMs;
+    if(enPitido && !rafagaSonando){ encenderSonido(ALARMA_SONIDO.frecuenciaHz); rafagaSonando = true; }
+    else if(!enPitido && rafagaSonando){ silenciarSonido(); }
+  }
+  setInterval(sonarAlarmasWeb, 20);
 
   // ---------- Configuracion de conexion ----------
   function abrirConfig(){
@@ -1243,11 +1341,13 @@
   };
 
   function silenciarAlarma(){
+    silenciarSonido();
     if(client && client.connected){ client.publish(topics.cmdSilenciar, 'SILENCIAR'); agregarFeed('Comando: silenciar alarma'); }
   }
   $('btnAlarma').onclick = silenciarAlarma;
   $('btnSilenciarAlarmaModal').onclick = silenciarAlarma;
   $('btnParar').onclick = function(){
+    if(!ultimo.ciclo){ agregarFeed('No hay secado en curso'); return; }
     pedirConfirmacion('¿Detener el secado en curso?', function(){
       if(client && client.connected){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: parar'); }
     });
