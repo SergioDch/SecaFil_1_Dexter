@@ -6,11 +6,8 @@
 <meta name="theme-color" content="#11141c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Seca - Fil">
-<title>Seca - Fil</title>
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="SecaFil">
+<title>SecaFil</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap">
 <style>
   :root{
@@ -361,7 +358,7 @@
   </div>
 </div>
 
-<script>/* version de la pagina, para confirmar en el celular que se recargo */ window.SECAFIL_WEB_VERSION = '2026-11-24a';</script>
+<script>/* version de la pagina, para confirmar en el celular que se recargo */ window.SECAFIL_WEB_VERSION = '2026-11-24b';</script>
 <script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js" onerror="document.getElementById('connTxt').textContent='No se pudo descargar la libreria MQTT (revisa tu conexion)'; document.getElementById('connPill').className='conn bad';"></script>
 <script>
 (function(){
@@ -1266,13 +1263,6 @@
     if(!ctx) return;
     ctx.fillStyle = COLOR.fondo;
     ctx.fillRect(0, 0, 160, 128);
-    var nota = $('pantallaNota');
-    if(!equipoEnLinea()){
-      // Sin datos en vivo no se dibuja nada de la pantalla del equipo
-      if(nota) nota.textContent = ultimo.recibido ? 'Equipo desconectado: no hay datos en vivo.' : 'Esperando a la secadora...';
-      return;
-    }
-    if(nota) nota.textContent = '';
     if(!ultimo.recibido){
       txt('SIN DATOS', 40, 56, 2, COLOR.gris);
       return;
@@ -1301,7 +1291,7 @@
   // ---------- Sonido de alarmas (mismos tiempos que el firmware) ----------
   // Cambiar estos valores modifica el sonido de la web; el firmware usa las
   // constantes ALARMA_* de SecaFil_6.cpp y deben quedar iguales.
-  var ALARMA_SONIDO = {frecuenciaHz:2700, pitidos:3, pitidoOnMs:450, periodoMs:700, repeticionMs:10000, volumen:0.9};
+  var ALARMA_SONIDO = {frecuenciaHz:1250, pitidos:3, pitidoOnMs:450, periodoMs:700, repeticionMs:10000, volumen:0.9};
   // Los pitidos se programan por adelantado en el reloj de audio del navegador:
   // siguen sonando aunque la pestana quede en segundo plano y el navegador frene los temporizadores.
   var HORIZONTE_AUDIO_S = 60;
