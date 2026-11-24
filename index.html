@@ -1090,7 +1090,7 @@
     for(var i = 0; i < partes.length; i++){
       // "CORTE TEMP MAX" / "CORTE NO CALIENTA" = corte de seguridad: la pantalla de la ESP muestra solo la causa
       var parte = partes[i].replace(/^CORTE /, '');
-      if(parte.indexOf('TEMP') === 0 || parte === 'NO CALIENTA') t = parte;
+      if(parte.indexOf('TEMP') === 0 || parte === 'NO CALIENTA' || parte === 'EXCESO CALOR') t = parte;
       else if(parte.indexOf('HUM') === 0) h = parte;
     }
     return {temp:t, hum:h};
@@ -1154,11 +1154,11 @@
   function pintarAmbiente(){
     txt('== AMBIENTE ==', 38, 4, 1, COLOR.texto);
     ctx.fillStyle = COLOR.linea; ctx.fillRect(0, 16, 160, 1);
-    centrado(ultimo.sensorTemp ? 'ERR' : Math.round(ultimo.temp) + '°C', 27, 3, ultimo.sensorTemp ? COLOR.error : COLOR.texto);
-    centrado(Math.round(ultimo.hum) + ' %', 63, 3, COLOR.texto);
-    iconoCalefactor(128, 30, ultimo.pwmCal > 0);
+    centrado(ultimo.sensorTemp ? 'ERR' : Math.round(ultimo.temp) + '°C', 33, 3, ultimo.sensorTemp ? COLOR.error : COLOR.texto);
+    centrado(Math.round(ultimo.hum) + ' %', 69, 3, COLOR.texto);
+    iconoCalefactor(128, 36, ultimo.pwmCal > 0);
     // Siempre animada en ambiente: el color indica el estado de la humedad (estable / alta / falta)
-    iconoGota(128, 62, true, colorGotaAmbiente());
+    iconoGota(128, 68, true, colorGotaAmbiente());
   }
 
   // ---------- Pantallas de alarma (espejo de SecaFil_6.cpp) ----------
@@ -1255,9 +1255,12 @@
   // ---------- Sonido de alarmas (mismos tiempos que el firmware) ----------
   // Cambiar estos valores modifica el sonido de la web; el firmware usa las
   // constantes ALARMA_* de SecaFil_6.cpp y deben quedar iguales.
-  var ALARMA_SONIDO = {frecuenciaHz:4500, pitidos:3, pitidoOnMs:450, periodoMs:700, repeticionMs:10000, volumen:0.12};
-  var audioCtx = null, audioOsc = null, audioGan = null, sonando = false;
-  var rafagaEnCurso = false, rafagaSonando = false, rafagaInicio = 0, rafagaProxima = 0;
+  var ALARMA_SONIDO = {frecuenciaHz:4500, pitidos:3, pitidoOnMs:450, periodoMs:700, repeticionMs:10000, volumen:0.6};
+  // Los pitidos se programan por adelantado en el reloj de audio del navegador:
+  // siguen sonando aunque la pestana quede en segundo plano y el navegador frene los temporizadores.
+  var HORIZONTE_AUDIO_S = 60;
+  var audioCtx = null, audioOsc = null, audioGan = null;
+  var alarmaSonandoWeb = false, proximaRafagaCtx = 0, silenciadoLocalHasta = 0;
 
   // El navegador exige un toque en la pagina antes de permitir sonido
   function prepararAudio(){
@@ -1275,52 +1278,61 @@
   }
   document.addEventListener('pointerdown', prepararAudio, true);
 
-  function encenderSonido(hz){
-    if(!audioGan) return;
-    sonando = true;
-    audioOsc.frequency.value = hz;
-    audioGan.gain.setTargetAtTime(ALARMA_SONIDO.volumen, audioCtx.currentTime, 0.002);
+  function programarRafagas(){
+    var g = audioGan.gain, ahora = audioCtx.currentTime;
+    if(proximaRafagaCtx < ahora) proximaRafagaCtx = ahora + 0.05;
+    while(proximaRafagaCtx < ahora + HORIZONTE_AUDIO_S){
+      for(var i = 0; i < ALARMA_SONIDO.pitidos; i++){
+        var t0 = proximaRafagaCtx + i * ALARMA_SONIDO.periodoMs / 1000;
+        g.setValueAtTime(ALARMA_SONIDO.volumen, t0);
+        g.setValueAtTime(0, t0 + ALARMA_SONIDO.pitidoOnMs / 1000);
+      }
+      proximaRafagaCtx += ALARMA_SONIDO.repeticionMs / 1000;
+    }
   }
   function silenciarSonido(){
-    rafagaSonando = false;
-    if(!audioGan || !sonando) return;
-    sonando = false;
-    audioGan.gain.setTargetAtTime(0, audioCtx.currentTime, 0.002);
+    alarmaSonandoWeb = false;
+    proximaRafagaCtx = 0;
+    if(!audioGan) return;
+    audioGan.gain.cancelScheduledValues(audioCtx.currentTime);
+    audioGan.gain.setValueAtTime(0, audioCtx.currentTime);
   }
-  function reiniciarRafagaWeb(){
-    silenciarSonido();
-    rafagaEnCurso = false;
-    rafagaProxima = Date.now();   // suena enseguida al aparecer la alarma
-  }
+  function reiniciarRafagaWeb(){ silenciarSonido(); }   // la rafaga nueva empieza enseguida
 
   // Igual que sonarRafagaAlarma() del firmware: 3 pitidos cada 10 s hasta silenciar o resolver la alarma (todas las alarmas)
   function sonarAlarmasWeb(){
     var p = ultimo.pantallaAlarma;
-    if(p !== 'CONDICION' && p !== 'SENSOR' && p !== 'FIN'){
-      rafagaEnCurso = false;
-      silenciarSonido();
-      return;
-    }
-    var ahora = Date.now();
-    if(!rafagaEnCurso){
-      if(ahora < rafagaProxima) return;
-      rafagaEnCurso = true;
-      rafagaInicio = ahora;
-    }
-    var t = ahora - rafagaInicio;
-    var duracion = (ALARMA_SONIDO.pitidos - 1) * ALARMA_SONIDO.periodoMs + ALARMA_SONIDO.pitidoOnMs;
-    if(t >= duracion){
-      silenciarSonido();
-      rafagaEnCurso = false;
-      rafagaProxima = rafagaInicio + ALARMA_SONIDO.repeticionMs;
-      return;
-    }
-    var enPitido = Math.floor(t / ALARMA_SONIDO.periodoMs) < ALARMA_SONIDO.pitidos &&
-                   (t % ALARMA_SONIDO.periodoMs) < ALARMA_SONIDO.pitidoOnMs;
-    if(enPitido && !rafagaSonando){ encenderSonido(ALARMA_SONIDO.frecuenciaHz); rafagaSonando = true; }
-    else if(!enPitido && rafagaSonando){ silenciarSonido(); }
+    var activa = (p === 'CONDICION' || p === 'SENSOR' || p === 'FIN') && equipoEnLinea() && Date.now() >= silenciadoLocalHasta;
+    if(!activa){ if(alarmaSonandoWeb) silenciarSonido(); return; }
+    if(!audioGan) return;
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    alarmaSonandoWeb = true;
+    programarRafagas();
   }
-  setInterval(sonarAlarmasWeb, 20);
+  setInterval(sonarAlarmasWeb, 250);
+
+  // Mientras hay un secado o una alarma, la pantalla no se apaga (si la pagina esta abierta y visible)
+  var wakeLock = null, pidiendoWakeLock = false;
+  function gestionarWakeLock(){
+    if(!('wakeLock' in navigator)) return;
+    var quiero = (ultimo.ciclo === 1 || ultimo.enAlarma) && equipoEnLinea() && document.visibilityState === 'visible';
+    if(quiero && !wakeLock && !pidiendoWakeLock){
+      pidiendoWakeLock = true;
+      navigator.wakeLock.request('screen').then(function(l){
+        wakeLock = l; pidiendoWakeLock = false;
+        l.addEventListener('release', function(){ wakeLock = null; });
+      }).catch(function(){ pidiendoWakeLock = false; });
+    } else if(!quiero && wakeLock){
+      wakeLock.release().catch(function(){}); wakeLock = null;
+    }
+  }
+  setInterval(gestionarWakeLock, 2000);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible'){
+      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      gestionarWakeLock();
+    }
+  });
 
   // ---------- Configuracion de conexion ----------
   function abrirConfig(){
@@ -1359,6 +1371,7 @@
   };
 
   function silenciarAlarma(){
+    silenciadoLocalHasta = Date.now() + 4000;
     silenciarSonido();
     if(client && client.connected){ client.publish(topics.cmdSilenciar, 'SILENCIAR'); agregarFeed('Comando: silenciar alarma'); }
   }
