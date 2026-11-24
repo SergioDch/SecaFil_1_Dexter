@@ -599,13 +599,14 @@
     ultimo.tempSet = Number(d.temp_set) || 0;
     ultimo.humSet = Number(d.hume_set) || 0;
     ultimo.sensorTemp = d.sensor_temp === 'FALLA';
+    ultimo.sensorNtc = d.sensor_ntc === 'FALLA';
     ultimo.sensorHum = d.sensor_hum === 'FALLA';
     ultimo.pwmCal = Number(d.pwm_calentador) || 0;
     ultimo.pwmVent = Number(d.pwm_ventilador) || 0;
     ultimo.vistaAmb = (d.vista_ambiente === undefined) ? 1 : (d.vista_ambiente ? 1 : 0);
 
     var pantallaNueva = d.pantalla_alarma || 'NINGUNA';
-    if(pantallaNueva !== ultimo.pantallaAlarma && (pantallaNueva === 'CONDICION' || pantallaNueva === 'SENSOR')) reiniciarRafagaWeb();
+    if(pantallaNueva !== ultimo.pantallaAlarma && pantallaNueva !== 'NINGUNA') reiniciarRafagaWeb();
     ultimo.pantallaAlarma = pantallaNueva;
     ultimo.causaCond = d.causa_alarma || '';
     var alarmaAnterior = ultimo.enAlarma;
@@ -1087,8 +1088,10 @@
     var t = '', h = '';
     var partes = (ultimo.causaCond || '').split(' y ');
     for(var i = 0; i < partes.length; i++){
-      if(partes[i].indexOf('TEMP') === 0) t = partes[i];
-      else if(partes[i].indexOf('HUM') === 0) h = partes[i];
+      // "CORTE TEMP MAX" / "CORTE NO CALIENTA" = corte de seguridad: la pantalla de la ESP muestra solo la causa
+      var parte = partes[i].replace(/^CORTE /, '');
+      if(parte.indexOf('TEMP') === 0 || parte === 'NO CALIENTA') t = parte;
+      else if(parte.indexOf('HUM') === 0) h = parte;
     }
     return {temp:t, hum:h};
   }
@@ -1195,10 +1198,13 @@
   function pintarAlarmaSensor(){
     ctx.fillStyle = COLOR.error; ctx.fillRect(0, 0, 160, 128);
     centrarTexto('FALLA SENSOR', 18, 2, tituloVisible() ? COLOR.destacado : COLOR.error);
-    if(ultimo.sensorTemp && ultimo.sensorHum){
+    var causaSensor = ultimo.causaCond || '';
+    var fallaT = causaSensor.indexOf('TEMP') !== -1 || (!causaSensor && (ultimo.sensorTemp || ultimo.sensorNtc));
+    var fallaH = causaSensor.indexOf('HUM') !== -1 || (!causaSensor && ultimo.sensorHum);
+    if(fallaT && fallaH){
       centrarTexto('TEMPERATURA', 44, 2, COLOR.texto);
       centrarTexto('HUMEDAD', 66, 2, COLOR.texto);
-    } else if(ultimo.sensorTemp){
+    } else if(fallaT){
       centrarTexto('TEMPERATURA', 52, 2, COLOR.texto);
     } else {
       centrarTexto('HUMEDAD', 52, 2, COLOR.texto);
@@ -1249,8 +1255,7 @@
   // ---------- Sonido de alarmas (mismos tiempos que el firmware) ----------
   // Cambiar estos valores modifica el sonido de la web; el firmware usa las
   // constantes ALARMA_* de SecaFil_6.cpp y deben quedar iguales.
-  var ALARMA_SONIDO = {frecuenciaHz:3400, pitidos:3, pitidoOnMs:450, periodoMs:700, pausaRafagaMs:1000, volumen:0.12};
-  var FIN_SONIDO = {agudoHz:2700, graveHz:2400, pasoMs:180};
+  var ALARMA_SONIDO = {frecuenciaHz:4500, pitidos:3, pitidoOnMs:450, periodoMs:700, repeticionMs:10000, volumen:0.12};
   var audioCtx = null, audioOsc = null, audioGan = null, sonando = false;
   var rafagaEnCurso = false, rafagaSonando = false, rafagaInicio = 0, rafagaProxima = 0;
 
@@ -1288,15 +1293,10 @@
     rafagaProxima = Date.now();   // suena enseguida al aparecer la alarma
   }
 
-  // Igual que sonarRafagaAlarma() del firmware: 3 pitidos que se repiten hasta silenciar o resolver la alarma
+  // Igual que sonarRafagaAlarma() del firmware: 3 pitidos cada 10 s hasta silenciar o resolver la alarma (todas las alarmas)
   function sonarAlarmasWeb(){
     var p = ultimo.pantallaAlarma;
-    if(p === 'FIN'){
-      var agudo = Math.floor(Date.now() / FIN_SONIDO.pasoMs) % 2 === 0;
-      encenderSonido(agudo ? FIN_SONIDO.agudoHz : FIN_SONIDO.graveHz);
-      return;
-    }
-    if(p !== 'CONDICION' && p !== 'SENSOR'){
+    if(p !== 'CONDICION' && p !== 'SENSOR' && p !== 'FIN'){
       rafagaEnCurso = false;
       silenciarSonido();
       return;
@@ -1312,7 +1312,7 @@
     if(t >= duracion){
       silenciarSonido();
       rafagaEnCurso = false;
-      rafagaProxima = ahora + ALARMA_SONIDO.pausaRafagaMs;
+      rafagaProxima = rafagaInicio + ALARMA_SONIDO.repeticionMs;
       return;
     }
     var enPitido = Math.floor(t / ALARMA_SONIDO.periodoMs) < ALARMA_SONIDO.pitidos &&
