@@ -617,7 +617,9 @@
     $('alarmaCausa').textContent = 'Motivo: ' + (d.causa_alarma || 'no especificado');
 
     var pInfo = perfilDeTelemetria();
-    ultimo.total = d.modo_auto ? 0 : Math.max(cicloTotalObservado, (pInfo && typeof pInfo.tiempo === 'number') ? pInfo.tiempo : 0);
+    // La ESP informa el total del ciclo: la barra de la web y la de la pantalla usan el mismo dato
+    if(typeof d.tiempo_total === 'number' && d.tiempo_total > 0) ultimo.total = d.modo_auto ? 0 : d.tiempo_total;
+    else ultimo.total = d.modo_auto ? 0 : Math.max(cicloTotalObservado, (pInfo && typeof pInfo.tiempo === 'number') ? pInfo.tiempo : 0);
 
     $('perfilTxt').textContent = d.perfil || '--';
     actualizarTiempo();
