@@ -434,6 +434,9 @@
     enAlarma:false, causaAlarma:null, alarmaActiva:false, pantallaAlarma:'NINGUNA', causaCond:''
   };
   var ultimoCicloVisto = 0, cicloTotalObservado = 0, finalizadoDesde = 0, ultimoMensajeEn = 0;
+  // La ESP publica cada 1 s: si no llega telemetria en vivo en este lapso, la secadora esta apagada o sin red
+  var UMBRAL_EQUIPO_OFFLINE_MS = 8000, ultimaTelemetriaViva = 0;
+  function equipoEnLinea(){ return ultimaTelemetriaViva > 0 && (Date.now() - ultimaTelemetriaViva) < UMBRAL_EQUIPO_OFFLINE_MS; }
 
   function $(id){ return document.getElementById(id); }
 
@@ -534,8 +537,11 @@
       setConn('bad', 'Error: ' + msg);
       agregarFeed('Error de conexión: ' + msg);
     });
-    client.on('message', function(topic, payload){
-      ultimoMensajeEn = Date.now();
+    client.on('message', function(topic, payload, packet){
+      // Los mensajes retenidos son la ultima foto guardada en el broker, no prueban que la secadora siga viva
+      var esRetenido = !!(packet && packet.retain);
+      if(!esRetenido) ultimoMensajeEn = Date.now();
+      if(topic === topics.telemetria && !esRetenido) ultimaTelemetriaViva = Date.now();
       var texto = payload.toString();
       if(topic === topics.telemetria) manejarTelemetria(texto);
       else if(topic === topics.perfiles) manejarPerfiles(texto);
@@ -580,8 +586,13 @@
     var d;
     try { d = JSON.parse(texto); } catch(e){ return; }
 
+    if(!equipoEnLinea()){
+      // Foto vieja del broker (secadora apagada): mostrar solo datos de referencia, sin ciclo ni alarma
+      d.ciclo = 0; d.pausado = 0; d.estado = ''; d.alarma = 'NINGUNA'; d.pantalla_alarma = 'NINGUNA';
+    }
+
     var cicloAnteriorVisto = ultimoCicloVisto;
-    if(ultimoCicloVisto === 1 && !d.ciclo){ finalizadoDesde = Date.now(); }
+    if(ultimoCicloVisto === 1 && !d.ciclo && equipoEnLinea()){ finalizadoDesde = Date.now(); }
     ultimoCicloVisto = d.ciclo ? 1 : 0;
     if(!d.ciclo){ cicloTotalObservado = 0; }
     else if(cicloAnteriorVisto !== 1 || (d.tiempo || 0) > cicloTotalObservado){ cicloTotalObservado = d.tiempo || 0; }
@@ -953,7 +964,8 @@
   // ---------- Estado, tiempo y alarmas ----------
   function actualizarEstadoPill(recienFinalizado){
     var pill = $('estadoPill');
-    if(ultimo.enAlarma){ pill.className = 'pill alarma'; pill.textContent = 'ALARMA'; }
+    if(!equipoEnLinea()){ pill.className = 'pill off'; pill.textContent = 'DESCONECTADA'; }
+    else if(ultimo.enAlarma){ pill.className = 'pill alarma'; pill.textContent = 'ALARMA'; }
     else if(recienFinalizado){ pill.className = 'pill finalizo'; pill.textContent = 'FINALIZO'; }
     else if(ultimo.estado === 'PAUSADO' || ultimo.estado === 'AUTO PAUSADO'){ pill.className = 'pill pausa'; pill.textContent = ultimo.estado; }
     else if(ultimo.estado === 'SECANDO'){ pill.className = 'pill on'; pill.textContent = 'ENCENDIDO'; }
@@ -989,7 +1001,33 @@
     fill.style.background = 'var(--temp)';
   }
 
+  var estabaEnLinea = false, avisoOfflineDado = false;
   function actualizarTiempo(){
+    var enLinea = equipoEnLinea();
+    if(enLinea !== estabaEnLinea){
+      estabaEnLinea = enLinea;
+      if(!enLinea && ultimo.recibido){
+        // Se perdio la secadora: no mostrar un ciclo ni una alarma que ya no se pueden confirmar
+        ultimo.ciclo = 0; ultimo.pausado = 0; ultimo.estado = ''; ultimo.enAlarma = false; ultimo.alarmaActiva = false;
+        ultimo.pantallaAlarma = 'NINGUNA';
+        ultimoCicloVisto = 0; finalizadoDesde = 0;
+        avisoOfflineDado = true;
+        agregarFeed('[AVISO] La secadora dejó de enviar datos (apagada o sin WiFi).');
+        actualizarPanelAuto(); renderAcciones();
+        $('btnParar').disabled = true;
+      } else if(enLinea && avisoOfflineDado){
+        avisoOfflineDado = false;
+        agregarFeed('La secadora volvió a enviar datos.');
+      }
+    }
+    if(!enLinea){
+      actualizarEstadoPill(false);
+      $('modalAlarma').hidden = true;
+      $('tiempoTxt').textContent = '--:--';
+      $('tiempoLabel').textContent = ultimo.recibido ? 'Secadora sin conexión' : 'Esperando a la secadora...';
+      actualizarBarra(0);
+      return;
+    }
     var recienFinalizado = !ultimo.ciclo && finalizadoDesde && (Date.now() - finalizadoDesde < TIEMPO_FIN_A_AMBIENTE_MS);
     actualizarEstadoPill(recienFinalizado);
     actualizarBannerAlarma();
