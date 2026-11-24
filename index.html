@@ -6,8 +6,11 @@
 <meta name="theme-color" content="#11141c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="SecaFil">
-<title>SecaFil</title>
+<meta name="apple-mobile-web-app-title" content="Seca - Fil">
+<title>Seca - Fil</title>
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap">
 <style>
   :root{
@@ -1263,6 +1266,13 @@
     if(!ctx) return;
     ctx.fillStyle = COLOR.fondo;
     ctx.fillRect(0, 0, 160, 128);
+    var nota = $('pantallaNota');
+    if(!equipoEnLinea()){
+      // Sin datos en vivo no se dibuja nada de la pantalla del equipo
+      if(nota) nota.textContent = ultimo.recibido ? 'Equipo desconectado: no hay datos en vivo.' : 'Esperando a la secadora...';
+      return;
+    }
+    if(nota) nota.textContent = '';
     if(!ultimo.recibido){
       txt('SIN DATOS', 40, 56, 2, COLOR.gris);
       return;
