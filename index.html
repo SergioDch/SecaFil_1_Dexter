@@ -272,6 +272,7 @@
     <option value="4">ASA</option>
     <option value="5">OTROS</option>
     <option value="auto">AUTOMATICO</option>
+    <option value="reiniciar">Reiniciar secadora</option>
     <option value="salir">Salir</option>
   </select>
 
@@ -361,7 +362,7 @@
   </div>
 </div>
 
-<script>/* version de la pagina, para confirmar en el celular que se recargo */ window.SECAFIL_WEB_VERSION = '2026-11-24b';</script>
+<script>/* version de la pagina, para confirmar en el celular que se recargo */ window.SECAFIL_WEB_VERSION = '2026-11-24c';</script>
 <script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js" onerror="document.getElementById('connTxt').textContent='No se pudo descargar la libreria MQTT (revisa tu conexion)'; document.getElementById('connPill').className='conn bad';"></script>
 <script>
 (function(){
@@ -912,6 +913,14 @@
     var v = e.target.value;
     if(v === '' || v === 'salir'){
       salirDeEdicion();
+    } else if(v === 'reiniciar'){
+      e.target.value = '';
+      if(!client || !client.connected){ agregarFeed('Sin conexión: no se puede reiniciar la secadora'); return; }
+      if(ultimo.ciclo){ agregarFeed('Detené el secado antes de reiniciar la secadora'); return; }
+      pedirConfirmacion('¿Reiniciar la secadora?', function(){
+        client.publish(topics.cmdAccion, 'REINICIAR');
+        agregarFeed('Comando: reiniciar secadora');
+      });
     } else if(v === 'auto'){
       $('editorPerfil').hidden = true;
       editandoCampo = null;
