@@ -356,6 +356,7 @@
   <div class="modal">
     <h2>⚠ Alarma activa</h2>
     <p class="nota"><strong id="alarmaCausa">Motivo: no especificado</strong></p>
+    <button class="btnfull" id="avisoSonido" hidden>🔇 Tocá aquí para activar el sonido</button>
     <button class="btnfull peligro" id="btnSilenciarAlarmaModal">Silenciar alarma</button>
   </div>
 </div>
@@ -1255,7 +1256,7 @@
   // ---------- Sonido de alarmas (mismos tiempos que el firmware) ----------
   // Cambiar estos valores modifica el sonido de la web; el firmware usa las
   // constantes ALARMA_* de SecaFil_6.cpp y deben quedar iguales.
-  var ALARMA_SONIDO = {frecuenciaHz:4500, pitidos:3, pitidoOnMs:450, periodoMs:700, repeticionMs:10000, volumen:0.6};
+  var ALARMA_SONIDO = {frecuenciaHz:2700, pitidos:3, pitidoOnMs:450, periodoMs:700, repeticionMs:10000, volumen:0.9};
   // Los pitidos se programan por adelantado en el reloj de audio del navegador:
   // siguen sonando aunque la pestana quede en segundo plano y el navegador frene los temporizadores.
   var HORIZONTE_AUDIO_S = 60;
@@ -1276,7 +1277,8 @@
     audioOsc.connect(audioGan); audioGan.connect(audioCtx.destination);
     audioOsc.start();
   }
-  document.addEventListener('pointerdown', prepararAudio, true);
+  ['pointerdown', 'touchend', 'click', 'keydown'].forEach(function(ev){ document.addEventListener(ev, prepararAudio, true); });
+  function audioHabilitado(){ return !!(audioCtx && audioCtx.state === 'running'); }
 
   function programarRafagas(){
     var g = audioGan.gain, ahora = audioCtx.currentTime;
@@ -1305,10 +1307,14 @@
     var activa = (p === 'CONDICION' || p === 'SENSOR' || p === 'FIN') && equipoEnLinea() && Date.now() >= silenciadoLocalHasta;
     if(!activa){ if(alarmaSonandoWeb) silenciarSonido(); return; }
     if(!audioGan) return;
-    if(audioCtx.state === 'suspended') audioCtx.resume();
+    if(audioCtx.state !== 'running') audioCtx.resume();
     alarmaSonandoWeb = true;
     programarRafagas();
   }
+  setInterval(function(){
+    var aviso = $('avisoSonido');
+    if(aviso) aviso.hidden = !ultimo.enAlarma || audioHabilitado();
+  }, 500);
   setInterval(sonarAlarmasWeb, 250);
 
   // Mientras hay un secado o una alarma, la pantalla no se apaga (si la pagina esta abierta y visible)
