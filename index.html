@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#11141c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Seca - Fil">
+<title>Seca - Fil</title>
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#eef0f2; --surface:#ffffff; --surface-2:#f5f6f8; --border:#dde1e6;
+    --text:#1a1f29; --text-muted:#5b6472;
+    --accent:#c65d2e; --accent-ink:#ffffff;
+    --temp:#d84f3e; --hum:#1f8a8c;
+    --good:#1f9d55; --good-bg:#e4f6ec;
+    --warn:#c98a12; --warn-bg:#fbf0d9;
+    --bad:#d64550; --bad-bg:#fbe4e4;
+    --track:#e4e7eb;
+    --shadow:0 1px 2px rgba(20,24,32,.06),0 8px 24px rgba(20,24,32,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#11141c; --surface:#1a1f2b; --surface-2:#212736; --border:#2b3244;
+      --text:#e9ecf3; --text-muted:#8d95a8;
+      --accent:#e8935a; --accent-ink:#1a1206;
+      --temp:#ff7a5c; --hum:#4fd1c5;
+      --good:#34d399; --good-bg:#123024;
+      --warn:#f0b429; --warn-bg:#332608;
+      --bad:#f2545b; --bad-bg:#331416;
+      --track:#2b3244;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#11141c; --surface:#1a1f2b; --surface-2:#212736; --border:#2b3244;
+    --text:#e9ecf3; --text-muted:#8d95a8;
+    --accent:#e8935a; --accent-ink:#1a1206;
+    --temp:#ff7a5c; --hum:#4fd1c5;
+    --good:#34d399; --good-bg:#123024;
+    --warn:#f0b429; --warn-bg:#332608;
+    --bad:#f2545b; --bad-bg:#331416;
+    --track:#2b3244;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 30px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  html{
+    font-size:16px; max-width:100%; overflow-x:hidden;
+    -webkit-text-size-adjust:100%; text-size-adjust:100%;
+  }
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    padding-inline:16px; padding-bottom:calc(100px + env(safe-area-inset-bottom,0px));
+    max-width:520px; margin:0 auto;
+    overflow-x:hidden;
+  }
+  input[type="number"]{-moz-appearance:textfield; appearance:textfield}
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+  h1,h2,h3{font-family:'Big Shoulders Display',system-ui,sans-serif; margin:0; text-wrap:balance}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+  header{
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+    padding-block:18px 10px;
+  }
+  .brand{display:flex; flex-direction:column; align-items:center; text-align:center; gap:2px}
+  .brand h1{font-size:2.3rem; font-weight:800; letter-spacing:.2px}
+  .brand .sub{font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px}
+  .iconbtn{
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--border);
+    background:var(--surface); color:var(--text); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex:none;
+  }
+  .iconbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  .conn{
+    display:flex; align-items:center; gap:8px; font-size:.78rem; color:var(--text-muted);
+    padding:6px 12px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); width:fit-content;
+    margin-bottom:14px;
+  }
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--text-muted); flex:none}
+  .conn.ok .dot{background:var(--good); animation:pulse 1.6s infinite}
+  .conn.bad .dot{background:var(--bad)}
+  .conn.wait .dot{background:var(--warn); animation:pulse 1s infinite}
+  @keyframes pulse{0%{opacity:1}50%{opacity:.3}100%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){ .dot{animation:none!important} }
+
+  .hero{
+    background:var(--surface); border:1px solid var(--border); border-radius:18px;
+    padding:18px; box-shadow:var(--shadow); margin-bottom:14px;
+  }
+  .hero-top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px}
+  .pill{
+    display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:20px;
+    font-size:.78rem; font-weight:600; letter-spacing:.3px;
+  }
+  .pill.on{background:var(--good-bg); color:var(--good)}
+  .pill.off{background:var(--track); color:var(--text-muted)}
+  .pill.alarma{background:var(--bad-bg); color:var(--bad)}
+  .hero-perfil{font-size:1.1rem; font-weight:600}
+  .hero-tiempo{font-size:2.6rem; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:-.5px; line-height:1}
+  .hero-tiempo-label{font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-top:6px}
+  .progreso-track{width:100%; height:7px; background:var(--track); border-radius:4px; overflow:hidden}
+  .progreso-fill{height:100%; width:0%; background:transparent; transition:width 1s linear}
+  .pill.finalizo{background:var(--warn-bg); color:var(--warn)}
+
+  .gauges{display:grid; grid-template-columns:1fr 1.1fr 1fr; gap:12px; margin-bottom:14px}
+  .gauge{
+    background:var(--surface); border:1px solid var(--border); border-radius:16px;
+    padding:14px; box-shadow:var(--shadow); display:flex; flex-direction:column; align-items:center; gap:6px;
+  }
+  .gauge .label{font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; align-self:flex-start}
+  .gauge svg{width:100%; max-width:150px; height:auto}
+  .gauge .val{font-size:2.1rem; font-weight:700; font-family:'JetBrains Mono',monospace}
+  .gauge-objetivos{justify-content:center; gap:16px}
+  .gauge-objetivos .objetivo-fila{display:flex; flex-direction:column; align-items:center; gap:2px}
+  .gauge-objetivos .mini-label{font-size:.62rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px}
+  .gauge-objetivos .objetivo-val{font-size:1.8rem; font-weight:700; font-family:'JetBrains Mono',monospace}
+
+  .seccion{margin-bottom:14px}
+  .seccion > .titulo{font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px; padding-inline:2px}
+
+  .selector-modo{
+    width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface);
+    color:var(--text); font-size:.95rem; font-weight:600; margin-bottom:4px;
+  }
+
+  .editor{
+    background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px;
+    box-shadow:var(--shadow); margin-top:10px; display:flex; flex-direction:column; gap:12px;
+  }
+  .campo{display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap}
+  .campo .nombre{font-size:.8rem; color:var(--text-muted); width:50px; flex:none}
+  .stepper{display:flex; align-items:center; gap:6px; flex:1; justify-content:flex-end; min-width:0}
+  .stepper button{
+    width:32px; height:32px; border-radius:9px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text); font-size:1.1rem; cursor:pointer; flex:none; user-select:none;
+  }
+  .stepper button:active{transform:scale(.94)}
+  .stepper input{
+    width:62px; min-width:0; text-align:center; font-family:'JetBrains Mono',monospace; font-size:.95rem; font-weight:600;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:9px; color:var(--text); padding:7px 2px;
+  }
+  .stepper .unidad{font-size:.76rem; color:var(--text-muted); width:20px; flex:none}
+
+  .btnfull{
+    width:100%; padding:12px; border-radius:12px; border:none; background:var(--accent); color:var(--accent-ink);
+    font-weight:700; font-size:.92rem; cursor:pointer; letter-spacing:.2px;
+  }
+  .btnfull:active{transform:scale(.98)}
+  .btnfull.secundario{background:var(--surface-2); color:var(--text); border:1px solid var(--border)}
+
+  .auto-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .auto-row{display:flex; justify-content:space-between; font-size:.85rem}
+  .auto-row .v{font-family:'JetBrains Mono',monospace; font-weight:600}
+  .nota{font-size:.72rem; color:var(--text-muted); line-height:1.4}
+
+  .feed{display:flex; flex-direction:column; gap:6px; max-height:150px; overflow-y:auto}
+  .feed-item{
+    display:flex; gap:8px; font-size:.78rem; padding:8px 10px; background:var(--surface); border:1px solid var(--border);
+    border-radius:10px;
+  }
+  .feed-item time{color:var(--text-muted); font-family:'JetBrains Mono',monospace; flex:none}
+  .feed-empty{font-size:.78rem; color:var(--text-muted); padding:8px 2px}
+
+  .barra{
+    position:fixed; left:0; right:0; bottom:0; padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
+    background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(10px);
+    border-top:1px solid var(--border); display:flex; gap:8px; max-width:552px; margin:0 auto;
+  }
+  .barra button{flex:1}
+  .barra .parar{background:var(--surface-2); color:var(--text); border:1px solid var(--border)}
+  .barra .alarma{background:var(--surface-2); color:var(--text); border:1px solid var(--border)}
+  .barra .alarma.activa{background:var(--bad); color:#fff; border-color:var(--bad)}
+
+  .modal-fondo{
+    position:fixed; inset:0; background:rgba(10,12,16,.55); display:flex; align-items:flex-end; justify-content:center; z-index:20;
+  }
+  .modal{
+    background:var(--surface); border-radius:18px 18px 0 0; padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));
+    width:100%; max-width:520px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow);
+  }
+  .modal h2{font-size:1.2rem}
+  .modal label{font-size:.76rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:4px}
+  .modal input{
+    width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--text); font-size:.9rem; margin-bottom:10px; font-family:'JetBrains Mono',monospace;
+  }
+  .modal .fila2{display:grid; grid-template-columns:2fr 1fr; gap:10px}
+
+  .alarma-fondo{z-index:30; align-items:center; animation:parpadeoFondo 1s infinite}
+  .alarma-fondo .modal{border-radius:18px; border:2px solid var(--bad)}
+  .alarma-fondo h2{color:var(--bad)}
+  .btnfull.peligro{background:var(--bad); color:#fff}
+  @keyframes parpadeoFondo{0%{background:rgba(10,12,16,.55)}50%{background:rgba(214,69,80,.35)}100%{background:rgba(10,12,16,.55)}}
+  @media (prefers-reduced-motion:reduce){ .alarma-fondo{animation:none} }
+
+  [hidden]{display:none!important}
+  .pill.pausa{background:var(--warn-bg); color:var(--warn)}
+  .aviso-sensor{font-size:.78rem; color:var(--bad); font-weight:600; margin-top:8px; text-align:center}
+  .acciones{display:flex; flex-direction:column; gap:10px}
+  .acciones .par{display:flex; gap:10px}
+  .acciones .par button{flex:1}
+  .pantalla-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:12px; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; gap:8px; margin-bottom:14px;
+  }
+  .pantalla-card .label{font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px}
+  .pantalla-card canvas{
+    width:100%; height:auto; aspect-ratio:160/128; image-rendering:auto; display:block;
+    border-radius:8px; background:#000; border:1px solid var(--border);
+  }
+  .stepper input.tiempo{width:118px; font-size:.82rem}
+</style>
+</head>
+<body>
+
+<header>
+  <div></div>
+  <div class="brand">
+    <h1>SecaFil</h1>
+    <span class="sub">DexLab-3D</span>
+  </div>
+  <div style="display:flex; gap:8px; justify-content:flex-end">
+    <button class="iconbtn" id="btnTema" aria-label="Cambiar tema" title="Cambiar tema">
+      <svg id="iconoTema" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+    </button>
+    <button class="iconbtn" id="btnConfig" aria-label="Configuración de conexión" title="Configuración">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="conn wait" id="connPill"><span class="dot"></span><span id="connTxt">Conectando...</span></div>
+
+<div class="hero">
+  <div class="hero-top">
+    <span class="pill off" id="estadoPill">APAGADO</span>
+    <span class="hero-perfil" id="perfilTxt">&mdash;</span>
+  </div>
+  <div class="progreso-track"><div class="progreso-fill" id="progresoFill"></div></div>
+  <div class="hero-tiempo mono" id="tiempoTxt">&#8212;&#8212;:&#8212;&#8212;</div>
+  <div class="hero-tiempo-label" id="tiempoLabel">Tiempo restante</div>
+  <div class="aviso-sensor" id="avisoSensor" hidden></div>
+</div>
+
+<div class="pantalla-card">
+  <span class="label">Pantalla del equipo (en vivo)</span>
+  <canvas id="pantallaEquipo" width="160" height="128" aria-label="Pantalla de la secadora"></canvas>
+  <p class="nota" id="pantallaNota">Esperando datos del equipo...</p>
+</div>
+
+<div class="seccion">
+  <div class="titulo">Perfil / Modo</div>
+  <select class="selector-modo" id="selectorModo">
+    <option value="" selected>Elegir perfil o modo...</option>
+    <option value="0">PLA</option>
+    <option value="1">PETG</option>
+    <option value="2">TPU</option>
+    <option value="3">ABS</option>
+    <option value="4">ASA</option>
+    <option value="5">OTROS</option>
+    <option value="auto">AUTOMATICO</option>
+    <option value="salir">Salir</option>
+  </select>
+
+  <div class="editor" id="editorPerfil" hidden></div>
+
+  <div class="auto-card" id="autoCard" hidden>
+    <div class="campo">
+      <span class="nombre">Temp</span>
+      <div class="stepper" id="stepAutoTemp">
+        <button type="button" data-dir="-1">&minus;</button>
+        <input class="mono" id="autoTempInput" type="number" placeholder="50">
+        <button type="button" data-dir="1">+</button>
+        <span class="unidad">&#176;C</span>
+      </div>
+    </div>
+    <div class="campo">
+      <span class="nombre">Hum</span>
+      <div class="stepper" id="stepAutoHum">
+        <button type="button" data-dir="-1">&minus;</button>
+        <input class="mono" id="autoHumInput" type="number" placeholder="15">
+        <button type="button" data-dir="1">+</button>
+        <span class="unidad">%</span>
+      </div>
+    </div>
+    <button class="btnfull secundario" id="btnAuto">Iniciar automático</button>
+    <button class="btnfull secundario" id="btnAutoPausa" hidden>Pausar</button>
+    <button class="btnfull secundario" id="btnSalirAuto">Salir</button>
+  </div>
+</div>
+
+<div class="seccion">
+  <div class="titulo">Actividad reciente</div>
+  <div class="feed" id="feed"><div class="feed-empty">Sin mensajes todavía.</div></div>
+</div>
+
+<div class="barra">
+  <button class="btnfull parar" id="btnParar">Parar</button>
+  <button class="btnfull alarma" id="btnAlarma">Silenciar alarma</button>
+</div>
+
+<div class="modal-fondo" id="modalConfig" hidden>
+  <div class="modal">
+    <h2>Conexión al broker</h2>
+    <div>
+      <label for="cfgHost">Servidor MQTT (WebSocket)</label>
+      <input id="cfgHost" placeholder="xxxxx.s1.eu.hivemq.cloud">
+    </div>
+    <div class="fila2">
+      <div>
+        <label for="cfgDev">ID del equipo</label>
+        <input id="cfgDev" placeholder="1">
+      </div>
+      <div>
+        <label for="cfgPort">Puerto WSS</label>
+        <input id="cfgPort" placeholder="8884">
+      </div>
+    </div>
+    <div>
+      <label for="cfgUser">Usuario MQTT</label>
+      <input id="cfgUser" autocomplete="off">
+    </div>
+    <div>
+      <label for="cfgPass">Contraseña MQTT</label>
+      <input id="cfgPass" type="password" autocomplete="off">
+    </div>
+    <p class="nota">Estos datos se guardan solo en este navegador (nunca se envían a ningún lado salvo directo al broker). No los compartas si prestás el link de esta página.</p>
+    <button class="btnfull" id="btnGuardarCfg">Guardar y conectar</button>
+    <button class="btnfull secundario" id="btnCerrarCfg">Cancelar</button>
+  </div>
+</div>
+
+<div class="modal-fondo" id="modalConfirmar" hidden>
+  <div class="modal">
+    <h2>Confirmar acción</h2>
+    <p class="nota" id="confirmarTexto"></p>
+    <button class="btnfull" id="btnConfirmarSi">Sí, confirmar</button>
+    <button class="btnfull secundario" id="btnConfirmarNo">Cancelar</button>
+  </div>
+</div>
+
+<div class="modal-fondo alarma-fondo" id="modalAlarma" hidden>
+  <div class="modal">
+    <h2>⚠ Alarma activa</h2>
+    <p class="nota"><strong id="alarmaCausa">Motivo: no especificado</strong></p>
+    <button class="btnfull" id="avisoSonido" hidden>🔇 Tocá aquí para activar el sonido</button>
+    <button class="btnfull peligro" id="btnSilenciarAlarmaModal">Silenciar alarma</button>
+  </div>
+</div>
+
+<script>/* version de la pagina, para confirmar en el celular que se recargo */ window.SECAFIL_WEB_VERSION = '2026-11-24a';</script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js" onerror="document.getElementById('connTxt').textContent='No se pudo descargar la libreria MQTT (revisa tu conexion)'; document.getElementById('connPill').className='conn bad';"></script>
+<script>
+(function(){
+  "use strict";
+
+  var LS_KEY = 'secafil_remoto_cfg_v1';
+  var NOMBRES = ['PLA','PETG','TPU','ABS','ASA','OTROS'];
+  // Valores por defecto: iguales a los del firmware (perfiles[] de SecaFil_6)
+  var PERFILES_DEFECTO = [
+    {nombre:'PLA',   temp:45, hum:10, tiempo:14400},
+    {nombre:'PETG',  temp:65, hum:10, tiempo:18000},
+    {nombre:'TPU',   temp:60, hum:10, tiempo:14400},
+    {nombre:'ABS',   temp:75, hum:10, tiempo:14400},
+    {nombre:'ASA',   temp:70, hum:10, tiempo:14400},
+    {nombre:'OTROS', temp:10, hum:10, tiempo:14400}
+  ];
+  var AUTO_DEFECTO = {temp:50, hum:15};
+  var RANGO_TEMP = [5,90], RANGO_HUM = [5,60], RANGO_TIEMPO = [0,172800];
+  var MARGEN_HUM_ALTA = 3, MARGEN_HUM_BAJA = 5;
+  var UMBRAL_SIN_DATOS_MS = 12000, TIEMPO_FIN_A_AMBIENTE_MS = 20000;
+
+  var COLOR = {fondo:'#000000', texto:'#ffffff', destacado:'#ffff00', linea:'#00ffff', error:'#ff0000',
+               gris:'#c6c6c6', grisOscuro:'#424242', estable:'#00ffff', falta:'#ffff00', alta:'#ff0000'};
+  var FUENTE = {
+    1:'10px "JetBrains Mono", monospace',
+    2:'600 20px "JetBrains Mono", monospace',
+    3:'600 30px "JetBrains Mono", monospace'
+  };
+
+  function cargarConfig(){
+    try { var raw = localStorage.getItem(LS_KEY); if(raw) return JSON.parse(raw); } catch(e){}
+    return { host:'5dab8a9752864256b9b112a6465de82a.s1.eu.hivemq.cloud', port:8884, dev:'1', user:'', pass:'' };
+  }
+  function guardarConfigLS(c){ try { localStorage.setItem(LS_KEY, JSON.stringify(c)); } catch(e){} }
+  var cfg = cargarConfig();
+
+  function clavePerfilesCache(){ return 'secafil_remoto_perfiles_v2_' + (cfg.dev || '1'); }
+  function cargarPerfilesCache(){
+    try {
+      var raw = localStorage.getItem(clavePerfilesCache());
+      if(raw){ var lista = JSON.parse(raw); if(Array.isArray(lista) && lista.length === 6) return lista; }
+    } catch(e){}
+    return null;
+  }
+  function guardarPerfilesCache(lista){ try { localStorage.setItem(clavePerfilesCache(), JSON.stringify(lista)); } catch(e){} }
+
+  function claveAutoCache(){ return 'secafil_remoto_auto_' + (cfg.dev || '1'); }
+  function cargarAutoCache(){
+    try {
+      var raw = localStorage.getItem(claveAutoCache());
+      if(raw){ var o = JSON.parse(raw); if(o && typeof o.temp === 'number' && typeof o.hum === 'number') return o; }
+    } catch(e){}
+    return null;
+  }
+  function guardarAutoCache(o){ try { localStorage.setItem(claveAutoCache(), JSON.stringify(o)); } catch(e){} }
+
+  var client = null;
+  var topics = null;
+  var perfilesCache = cargarPerfilesCache();
+  var perfiles = perfilesCache || PERFILES_DEFECTO.map(function(p){ return {nombre:p.nombre, temp:p.temp, hum:p.hum, tiempo:p.tiempo}; });
+  var perfilSeleccionado = 0;
+  var editandoCampo = null;
+  var autoOculto = false;
+  var ultimo = {
+    recibido:false, ciclo:0, modoAuto:0, pausado:0, estado:'', perfilActivo:'', causaParada:'',
+    tiempo:0, recibidoEn:0, total:0, temp:0, hum:0, tempSet:0, humSet:0,
+    sensorTemp:false, sensorHum:false, pwmCal:0, pwmVent:0, vistaAmb:1,
+    enAlarma:false, causaAlarma:null, alarmaActiva:false, pantallaAlarma:'NINGUNA', causaCond:''
+  };
+  var ultimoCicloVisto = 0, cicloTotalObservado = 0, finalizadoDesde = 0, ultimoMensajeEn = 0;
+  // La ESP publica cada 1 s: si no llega telemetria en vivo en este lapso, la secadora esta apagada o sin red
+  var UMBRAL_EQUIPO_OFFLINE_MS = 8000, ultimaTelemetriaViva = 0;
+  function equipoEnLinea(){ return ultimaTelemetriaViva > 0 && (Date.now() - ultimaTelemetriaViva) < UMBRAL_EQUIPO_OFFLINE_MS; }
+
+  function $(id){ return document.getElementById(id); }
+
+  var confirmarAlAceptar = null, confirmarAlCancelar = null;
+  function pedirConfirmacion(texto, alAceptar, alCancelar){
+    $('confirmarTexto').textContent = texto;
+    confirmarAlAceptar = alAceptar || null;
+    confirmarAlCancelar = alCancelar || null;
+    $('modalConfirmar').hidden = false;
+  }
+  $('btnConfirmarSi').onclick = function(){
+    $('modalConfirmar').hidden = true;
+    var cb = confirmarAlAceptar; confirmarAlAceptar = null; confirmarAlCancelar = null;
+    if(cb) cb();
+  };
+  $('btnConfirmarNo').onclick = function(){
+    $('modalConfirmar').hidden = true;
+    var cb = confirmarAlCancelar; confirmarAlAceptar = null; confirmarAlCancelar = null;
+    if(cb) cb();
+  };
+
+  var SVG_SOL = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  var SVG_LUNA = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function obtenerTemaGuardado(){ try { return localStorage.getItem('secafil_tema'); } catch(e){ return null; } }
+  function guardarTema(t){ try { localStorage.setItem('secafil_tema', t); } catch(e){} }
+  function temaPreferidoSistema(){
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  function aplicarTema(t){
+    document.documentElement.setAttribute('data-theme', t);
+    $('iconoTema').innerHTML = (t === 'dark') ? SVG_LUNA : SVG_SOL;
+  }
+  function inicializarTema(){
+    var g = obtenerTemaGuardado();
+    aplicarTema((g === 'light' || g === 'dark') ? g : temaPreferidoSistema());
+  }
+  $('btnTema').onclick = function(){
+    var actual = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    var nuevo = actual === 'dark' ? 'light' : 'dark';
+    guardarTema(nuevo); aplicarTema(nuevo);
+  };
+  inicializarTema();
+
+  function construirTopicos(dev){
+    var base = 'secafil6/' + dev + '/';
+    return {
+      telemetria: base + 'telemetria', perfiles: base + 'perfiles', alertas: base + 'alertas', ack: base + 'ack',
+      cmdAccion: base + 'cmd/accion', cmdTemp: base + 'cmd/set_temp', cmdHume: base + 'cmd/set_hume',
+      cmdPerfil: base + 'cmd/perfil', cmdTiempo: base + 'cmd/set_tiempo',
+      cmdAutoTemp: base + 'cmd/set_auto_temp', cmdAutoHume: base + 'cmd/set_auto_hume',
+      cmdSilenciar: base + 'cmd/silenciar'
+    };
+  }
+
+  function setConn(estado, texto){
+    $('connPill').className = 'conn ' + estado;
+    $('connTxt').textContent = texto;
+  }
+
+  function agregarFeed(texto){
+    var feed = $('feed');
+    var vacio = feed.querySelector('.feed-empty');
+    if(vacio) vacio.remove();
+    var item = document.createElement('div');
+    item.className = 'feed-item';
+    var hora = new Date().toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    item.innerHTML = '<time>' + hora + '</time><span></span>';
+    item.querySelector('span').textContent = texto;
+    feed.prepend(item);
+    while(feed.children.length > 12) feed.removeChild(feed.lastChild);
+  }
+
+  function conectar(){
+    if(client){ try { client.end(true); } catch(e){} }
+    topics = construirTopicos(cfg.dev || '1');
+    if(!cfg.host || !cfg.user){ setConn('bad', 'Configurá el broker'); abrirConfig(); return; }
+    setConn('wait', 'Conectando...');
+    if(typeof mqtt === 'undefined'){ setConn('bad', 'No cargo la libreria MQTT (revisa tu conexion a internet)'); return; }
+    var url = 'wss://' + cfg.host + ':' + (cfg.port || 8884) + '/mqtt';
+    try {
+      client = mqtt.connect(url, {
+        username: cfg.user, password: cfg.pass,
+        clientId: 'secafil_dash_' + Math.random().toString(16).slice(2),
+        reconnectPeriod: 4000, connectTimeout: 8000, clean: true
+      });
+    } catch(e){
+      setConn('bad', 'No se pudo conectar: ' + (e && e.message ? e.message : e));
+      return;
+    }
+    client.on('connect', function(){
+      setConn('ok', 'En línea');
+      [topics.telemetria, topics.perfiles, topics.alertas, topics.ack].forEach(function(t){ client.subscribe(t); });
+    });
+    client.on('reconnect', function(){ setConn('wait', 'Reconectando...'); });
+    client.on('close', function(){ setConn('bad', 'Sin conexión'); });
+    client.on('error', function(err){
+      var msg = (err && err.message) ? err.message : String(err || 'desconocido');
+      setConn('bad', 'Error: ' + msg);
+      agregarFeed('Error de conexión: ' + msg);
+    });
+    client.on('message', function(topic, payload, packet){
+      // Los mensajes retenidos son la ultima foto guardada en el broker, no prueban que la secadora siga viva
+      var esRetenido = !!(packet && packet.retain);
+      if(!esRetenido) ultimoMensajeEn = Date.now();
+      if(topic === topics.telemetria && !esRetenido) ultimaTelemetriaViva = Date.now();
+      var texto = payload.toString();
+      if(topic === topics.telemetria) manejarTelemetria(texto);
+      else if(topic === topics.perfiles) manejarPerfiles(texto);
+      else if(topic === topics.alertas) agregarFeed('[ALERTA] ' + texto);
+      else if(topic === topics.ack) agregarFeed(texto);
+    });
+  }
+
+  setInterval(function(){
+    if(client && client.connected && ultimoMensajeEn && (Date.now() - ultimoMensajeEn > UMBRAL_SIN_DATOS_MS)){
+      setConn('wait', 'Sin datos recientes, reconectando...');
+      conectar();
+    }
+  }, 5000);
+
+  function manejarPerfiles(texto){
+    try {
+      var lista = JSON.parse(texto);
+      if(Array.isArray(lista) && lista.length === 6){
+        perfiles = lista;
+        guardarPerfilesCache(lista);
+        // Si el usuario esta escribiendo en el editor, redibujar recien al salir del campo
+        if(editandoCampo){
+          if(hayEdicionEnCurso()) perfilesPendientes = true; else renderEditor();
+        }
+      }
+    } catch(e){}
+  }
+  var perfilesPendientes = false;
+  $('editorPerfil').addEventListener('focusout', function(){
+    setTimeout(function(){
+      if(perfilesPendientes && editandoCampo && !hayEdicionEnCurso()){ perfilesPendientes = false; renderEditor(); }
+    }, 300);
+  });
+
+  function perfilDeTelemetria(){
+    var idx = NOMBRES.indexOf(ultimo.perfilActivo);
+    return idx === -1 ? perfiles[perfilSeleccionado] : perfiles[idx];
+  }
+
+  function manejarTelemetria(texto){
+    var d;
+    try { d = JSON.parse(texto); } catch(e){ return; }
+
+    if(!equipoEnLinea()){
+      // Foto vieja del broker (secadora apagada): mostrar solo datos de referencia, sin ciclo ni alarma
+      d.ciclo = 0; d.pausado = 0; d.estado = ''; d.alarma = 'NINGUNA'; d.pantalla_alarma = 'NINGUNA';
+    }
+
+    var cicloAnteriorVisto = ultimoCicloVisto;
+    if(ultimoCicloVisto === 1 && !d.ciclo && equipoEnLinea()){ finalizadoDesde = Date.now(); }
+    ultimoCicloVisto = d.ciclo ? 1 : 0;
+    if(!d.ciclo){ cicloTotalObservado = 0; }
+    else if(cicloAnteriorVisto !== 1 || (d.tiempo || 0) > cicloTotalObservado){ cicloTotalObservado = d.tiempo || 0; }
+
+    ultimo.recibido = true;
+    ultimo.tiempo = d.tiempo || 0;
+    ultimo.recibidoEn = Date.now();
+    ultimo.ciclo = d.ciclo ? 1 : 0;
+    ultimo.modoAuto = d.modo_auto ? 1 : 0;
+    ultimo.pausado = d.pausado ? 1 : 0;
+    ultimo.estado = d.estado || '';
+    ultimo.perfilActivo = d.perfil || '';
+    ultimo.causaParada = d.causa_parada || '';
+    ultimo.temp = Number(d.temp_act) || 0;
+    ultimo.hum = Number(d.hume_act) || 0;
+    ultimo.tempSet = Number(d.temp_set) || 0;
+    ultimo.humSet = Number(d.hume_set) || 0;
+    ultimo.sensorTemp = d.sensor_temp === 'FALLA';
+    ultimo.sensorNtc = d.sensor_ntc === 'FALLA';
+    ultimo.sensorHum = d.sensor_hum === 'FALLA';
+    ultimo.pwmCal = Number(d.pwm_calentador) || 0;
+    ultimo.pwmVent = Number(d.pwm_ventilador) || 0;
+    ultimo.vistaAmb = (d.vista_ambiente === undefined) ? 1 : (d.vista_ambiente ? 1 : 0);
+
+    var pantallaNueva = d.pantalla_alarma || 'NINGUNA';
+    if(pantallaNueva !== ultimo.pantallaAlarma && pantallaNueva !== 'NINGUNA') reiniciarRafagaWeb();
+    ultimo.pantallaAlarma = pantallaNueva;
+    ultimo.causaCond = d.causa_alarma || '';
+    var alarmaAnterior = ultimo.enAlarma;
+    ultimo.enAlarma = d.alarma !== 'NINGUNA' || pantallaNueva !== 'NINGUNA';
+    ultimo.alarmaActiva = ultimo.enAlarma;
+    if(ultimo.enAlarma && !alarmaAnterior) agregarFeed('[ALARMA] Se activó: ' + (d.causa_alarma || 'condición no especificada') + '.');
+    else if(!ultimo.enAlarma && alarmaAnterior) agregarFeed('[ALARMA] Se desactivó (' + (ultimo.causaAlarma || 'condición anterior') + ').');
+    if(ultimo.enAlarma) ultimo.causaAlarma = d.causa_alarma || null;
+    $('alarmaCausa').textContent = 'Motivo: ' + (d.causa_alarma || 'no especificado');
+
+    var pInfo = perfilDeTelemetria();
+    // La ESP informa el total del ciclo: la barra de la web y la de la pantalla usan el mismo dato
+    if(typeof d.tiempo_total === 'number' && d.tiempo_total > 0) ultimo.total = d.modo_auto ? 0 : d.tiempo_total;
+    else ultimo.total = d.modo_auto ? 0 : Math.max(cicloTotalObservado, (pInfo && typeof pInfo.tiempo === 'number') ? pInfo.tiempo : 0);
+
+    $('perfilTxt').textContent = d.perfil || '--';
+    actualizarTiempo();
+    actualizarBannerAlarma();
+
+    if(d.modo_auto){
+      controlAutoTemp.fijarValorConfirmado(Math.round(ultimo.tempSet));
+      controlAutoHum.fijarValorConfirmado(Math.round(ultimo.humSet));
+    }
+    actualizarPanelAuto();
+    actualizarAvisoSensores();
+    renderAcciones();
+    $('btnParar').disabled = !ultimo.ciclo;
+  }
+
+  // ---------- Tiempo: mismos pasos y formato que el firmware ----------
+  function pasoTiempo(v, giro){
+    if(giro > 0){
+      if(v < TIEMPO_CORTO_MAX) v += 1;
+      else if(v < TIEMPO_LARGO_MIN) v += 60;
+      else v += TIEMPO_PASO_LARGO;
+    } else if(giro < 0){
+      if(v <= TIEMPO_CORTO_MAX) v -= 1;
+      else if(v <= TIEMPO_LARGO_MIN) v -= 60;
+      else v -= TIEMPO_PASO_LARGO;
+    }
+    return Math.max(RANGO_TIEMPO[0], Math.min(RANGO_TIEMPO[1], v));
+  }
+  var TIEMPO_CORTO_MAX = 60, TIEMPO_LARGO_MIN = 3600, TIEMPO_PASO_LARGO = 3600;
+
+  function formatearTiempo(s){
+    s = Math.max(0, Math.round(s));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), seg = s % 60;
+    if(h > 0) return m > 0 ? (h + ' h ' + m + ' min') : (h + ' h');
+    if(m > 0) return seg > 0 ? (m + ' min ' + seg + ' s') : (m + ' min');
+    return seg + ' s';
+  }
+  // Acepta "90", "5 min", "2 h", "1 h 30 min", "45 s"
+  function parsearTiempo(texto){
+    var s = String(texto).replace(',', '.').trim();
+    if(/^\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+    var re = /(\d+(?:\.\d+)?)\s*(horas?|hs?|h|minutos?|min|m|segundos?|seg|s)?/gi, total = 0, hay = false, m, ultimaUnidad = '';
+    while((m = re.exec(s))){
+      hay = true;
+      // Numero sin unidad despues de horas = minutos; despues de minutos = segundos
+      var n = parseFloat(m[1]), u = (m[2] || (ultimaUnidad === 'h' ? 'min' : 's')).toLowerCase();
+      if(u.indexOf('min') === 0) u = 'min';
+      ultimaUnidad = u[0] === 'h' ? 'h' : u;
+      if(u[0] === 'h') total += n * 3600;
+      else if(u === 'min' || u === 'm') total += n * 60;
+      else total += n;
+    }
+    return hay ? total : NaN;
+  }
+  function fmtHMS(s){
+    s = Math.max(0, Math.floor(s));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), seg = s % 60;
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(seg).padStart(2,'0');
+  }
+
+  // ---------- Controles con stepper (confirmacion al soltar, como antes) ----------
+  function crearControl(o){
+    var input = o.input;
+    var confirmado = (o.valorInicial === null || o.valorInicial === undefined || isNaN(o.valorInicial)) ? null : o.valorInicial;
+
+    function pintar(v){ input.value = (v === null || v === undefined) ? '' : o.mostrar(v); }
+    function limitar(v){
+      if(isNaN(v)) v = (confirmado === null) ? o.min : confirmado;
+      return Math.max(o.min, Math.min(o.max, Math.round(v)));
+    }
+    function leerActual(){
+      var v = o.leer(input.value);
+      return isNaN(v) ? ((confirmado === null) ? o.min : confirmado) : v;
+    }
+    pintar(confirmado);
+
+    function confirmarSiCambio(){
+      var v = limitar(leerActual());
+      pintar(v);
+      if(v === confirmado) return;
+      var etiqueta = o.nombre + ' = ' + o.mostrar(v) + (o.detalle ? ' (' + o.detalle + ')' : '');
+      function aplicar(){
+        confirmado = v;
+        if(client && client.connected){ client.publish(o.topic(), String(v)); }
+        if(o.alConfirmar) o.alConfirmar(v);
+        agregarFeed('Guardado: ' + etiqueta);
+      }
+      if(!o.requiereConfirmacion){ aplicar(); return; }
+      pedirConfirmacion('¿Aplicar ' + etiqueta + '?', aplicar, function(){ pintar(confirmado); });
+    }
+
+    o.botones.querySelectorAll('button').forEach(function(btn){
+      var dir = parseInt(btn.dataset.dir, 10);
+      var intervalo = null, timeout = null;
+      function paso(){
+        var base = leerActual();
+        var sig = o.paso(base, dir);
+        pintar(limitar(sig));
+      }
+      function iniciar(){ detener(); paso(); timeout = setTimeout(function(){ intervalo = setInterval(paso, 130); }, 400); }
+      function detener(){
+        var habia = !!(timeout || intervalo);
+        clearTimeout(timeout); clearInterval(intervalo); timeout = null; intervalo = null;
+        if(habia) confirmarSiCambio();
+      }
+      btn.addEventListener('mousedown', iniciar);
+      btn.addEventListener('touchstart', function(e){ e.preventDefault(); iniciar(); });
+      ['mouseup','mouseleave','touchend','touchcancel'].forEach(function(ev){ btn.addEventListener(ev, detener); });
+    });
+    input.addEventListener('change', confirmarSiCambio);
+
+    return {
+      fijarValorConfirmado: function(v){
+        confirmado = limitar(v);
+        if(document.activeElement !== input) pintar(confirmado);
+      }
+    };
+  }
+
+  var numero = function(s){ return parseFloat(String(s).replace(',', '.')); };
+  var pasoFijo = function(base, dir){ return base + dir; };
+  var mostrarNumero = function(v){ return String(v); };
+
+  var controlAutoTemp, controlAutoHum;
+  function iniciarControlesAuto(){
+    var cache = cargarAutoCache() || AUTO_DEFECTO;
+    controlAutoTemp = crearControl({
+      input:$('autoTempInput'), botones:$('stepAutoTemp'), min:RANGO_TEMP[0], max:RANGO_TEMP[1],
+      paso:pasoFijo, leer:numero, mostrar:mostrarNumero, valorInicial:cache.temp,
+      topic:function(){ return topics.cmdAutoTemp; }, nombre:'Temp', detalle:'automático',
+      requiereConfirmacion:true,
+      alConfirmar:function(v){ var a = cargarAutoCache() || {temp:50, hum:15}; a.temp = v; guardarAutoCache(a); }
+    });
+    controlAutoHum = crearControl({
+      input:$('autoHumInput'), botones:$('stepAutoHum'), min:RANGO_HUM[0], max:RANGO_HUM[1],
+      paso:pasoFijo, leer:numero, mostrar:mostrarNumero, valorInicial:cache.hum,
+      topic:function(){ return topics.cmdAutoHume; }, nombre:'Hum', detalle:'automático',
+      requiereConfirmacion:true,
+      alConfirmar:function(v){ var a = cargarAutoCache() || {temp:50, hum:15}; a.hum = v; guardarAutoCache(a); }
+    });
+  }
+
+  function hayEdicionEnCurso(){
+    var a = document.activeElement;
+    var escribiendo = a && a.tagName === 'INPUT' && (a.closest('#editorPerfil') || a.closest('#autoCard'));
+    return !$('modalConfirmar').hidden || !!escribiendo;
+  }
+
+  function renderEditor(){
+    var ed = $('editorPerfil');
+    ed.hidden = false;
+    var p = perfiles[perfilSeleccionado];
+    ed.innerHTML = '';
+    var campos = [
+      {nombre:'Temp',   valor:p.temp,   unidad:'°C', tipo:'temp',   topic:function(){ return topics.cmdTemp; }},
+      {nombre:'Hum',    valor:p.hum,    unidad:'%',  tipo:'hum',    topic:function(){ return topics.cmdHume; }},
+      {nombre:'Tiempo', valor:p.tiempo, unidad:'',   tipo:'tiempo', topic:function(){ return topics.cmdTiempo; }}
+    ];
+    campos.forEach(function(c){
+      var fila = document.createElement('div');
+      fila.className = 'campo';
+      fila.innerHTML =
+        '<span class="nombre">' + c.nombre + '</span>' +
+        '<div class="stepper">' +
+          '<button type="button" data-dir="-1">&minus;</button>' +
+          (c.tipo === 'tiempo'
+            ? '<input class="mono tiempo" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ej: 4h, 10m, 1h 30m">'
+            : '<input class="mono" type="text" inputmode="decimal">') +
+          '<button type="button" data-dir="1">+</button>' +
+          (c.unidad ? '<span class="unidad">' + c.unidad + '</span>' : '') +
+        '</div>';
+      ed.appendChild(fila);
+      var input = fila.querySelector('input');
+      var esTiempo = c.tipo === 'tiempo';
+      var rango = c.tipo === 'temp' ? RANGO_TEMP : (c.tipo === 'hum' ? RANGO_HUM : RANGO_TIEMPO);
+      var prop = c.tipo === 'temp' ? 'temp' : (c.tipo === 'hum' ? 'hum' : 'tiempo');
+      crearControl({
+        input:input, botones:fila, min:rango[0], max:rango[1],
+        paso: esTiempo ? pasoTiempo : pasoFijo,
+        leer: esTiempo ? parsearTiempo : numero,
+        mostrar: esTiempo ? formatearTiempo : mostrarNumero,
+        valorInicial: c.valor, topic: c.topic, nombre: c.nombre, detalle: p.nombre,
+        requiereConfirmacion: false,
+        alConfirmar: function(v){ p[prop] = v; guardarPerfilesCache(perfiles); }
+      });
+    });
+
+    var cont = document.createElement('div');
+    cont.className = 'acciones';
+    cont.id = 'accionesPerfil';
+    ed.appendChild(cont);
+    renderAcciones();
+
+    var btnSalir = document.createElement('button');
+    btnSalir.className = 'btnfull secundario';
+    btnSalir.textContent = 'Salir';
+    btnSalir.onclick = salirDeEdicion;
+    ed.appendChild(btnSalir);
+  }
+
+  function crearBoton(texto, clase, alPulsar){
+    var b = document.createElement('button');
+    b.className = 'btnfull' + (clase ? ' ' + clase : '');
+    b.textContent = texto;
+    b.onclick = alPulsar;
+    return b;
+  }
+  function textoAccion(t){
+    var n = document.createElement('p');
+    n.className = 'nota';
+    n.textContent = t;
+    return n;
+  }
+
+  // Acciones del perfil segun el estado real del equipo (Iniciar / Pausar-Continuar / Detener)
+  function renderAcciones(){
+    var cont = $('accionesPerfil');
+    if(!cont || $('editorPerfil').hidden) return;
+    var p = perfiles[perfilSeleccionado];
+    var hayCiclo = !!ultimo.ciclo;
+    var esAuto = !!ultimo.modoAuto;
+    var esEsteActivo = hayCiclo && !esAuto && ultimo.perfilActivo === p.nombre;
+    var clave = [hayCiclo, esAuto, esEsteActivo, !!ultimo.pausado, p.nombre].join('|');
+    if(cont.dataset.clave === clave) return;
+    cont.dataset.clave = clave;
+    cont.innerHTML = '';
+
+    if(hayCiclo && esAuto){
+      cont.appendChild(textoAccion('Hay un modo automático en curso. Controlalo desde AUTOMATICO.'));
+      return;
+    }
+    if(hayCiclo && !esEsteActivo){
+      cont.appendChild(textoAccion('Hay un secado en curso con ' + (ultimo.perfilActivo || 'otro perfil') + '. Detenelo para iniciar este perfil.'));
+      return;
+    }
+    if(!hayCiclo){
+      cont.appendChild(crearBoton('Iniciar ' + p.nombre, '', function(){
+        if(client && client.connected){ client.publish(topics.cmdPerfil, p.nombre); client.publish(topics.cmdAccion, 'START'); agregarFeed('Comando: iniciar ' + p.nombre); }
+      }));
+      return;
+    }
+    var fila = document.createElement('div');
+    fila.className = 'par';
+    fila.appendChild(crearBoton(ultimo.pausado ? 'Continuar' : 'Pausar', 'secundario', function(){
+      var estabaPausado = !!ultimo.pausado;
+      pedirConfirmacion(estabaPausado ? '¿Continuar el secado?' : '¿Pausar el secado en curso?', function(){
+        if(client && client.connected){
+          client.publish(topics.cmdAccion, estabaPausado ? 'RESUME' : 'PAUSE');
+          agregarFeed('Comando: ' + (estabaPausado ? 'continuar' : 'pausar') + ' secado');
+        }
+      });
+    }));
+    fila.appendChild(crearBoton('Detener', 'peligro', function(){
+      pedirConfirmacion('¿Detener el secado en curso?', function(){
+        if(client && client.connected){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: parar'); }
+      });
+    }));
+    cont.appendChild(fila);
+  }
+
+  function salirDeEdicion(){
+    var estabaEnPerfil = !$('editorPerfil').hidden && editandoCampo !== null;
+    if(estabaEnPerfil && client && client.connected) client.publish(topics.cmdAccion, 'MOSTRAR_PERFIL');
+    $('editorPerfil').hidden = true;
+    $('autoCard').hidden = true;
+    editandoCampo = null;
+    $('selectorModo').value = '';
+    if(ultimo.ciclo && ultimo.modoAuto) autoOculto = true;
+  }
+
+  function abrirPerfil(i){
+    perfilSeleccionado = i;
+    editandoCampo = 'Temp';
+    $('autoCard').hidden = true;
+    renderEditor();
+  }
+
+  $('selectorModo').addEventListener('change', function(e){
+    var v = e.target.value;
+    if(v === '' || v === 'salir'){
+      salirDeEdicion();
+    } else if(v === 'auto'){
+      $('editorPerfil').hidden = true;
+      editandoCampo = null;
+      autoOculto = false;
+      $('autoCard').hidden = false;
+    } else {
+      var i = parseInt(v, 10);
+      var nombre = NOMBRES[i];
+      if(ultimo.ciclo && !ultimo.modoAuto && ultimo.perfilActivo === nombre){ abrirPerfil(i); return; }
+      pedirConfirmacion('¿Cambiar el perfil activo a ' + nombre + '?', function(){
+        abrirPerfil(i);
+        if(client && client.connected) client.publish(topics.cmdPerfil, nombre);
+      }, function(){ e.target.value = ''; });
+    }
+  });
+
+  // Panel automatico: iniciar / detener / pausar / continuar
+  function actualizarPanelAuto(){
+    var autoActivo = !!(ultimo.ciclo && ultimo.modoAuto);
+    $('btnAuto').textContent = autoActivo ? 'Detener' : 'Iniciar automático';
+    $('btnAutoPausa').hidden = !autoActivo;
+    $('btnAutoPausa').textContent = ultimo.pausado ? 'Continuar' : 'Pausar';
+    if(!autoActivo) autoOculto = false;
+    if(autoActivo && !autoOculto && !hayEdicionEnCurso()){
+      $('selectorModo').value = 'auto';
+      $('editorPerfil').hidden = true;
+      $('autoCard').hidden = false;
+    }
+  }
+
+  $('btnAuto').onclick = function(){
+    if(!client || !client.connected) return;
+    var enAuto = ultimo.ciclo && ultimo.modoAuto;
+    if(!enAuto && ultimo.ciclo){ agregarFeed('Hay un secado en curso. Detenelo antes de iniciar el automático.'); return; }
+    pedirConfirmacion(enAuto ? '¿Detener el modo automático?' : '¿Iniciar el modo automático?', function(){
+      if(enAuto){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: detener automático'); }
+      else { client.publish(topics.cmdAccion, 'START_AUTO'); agregarFeed('Comando: iniciar automático'); }
+    });
+  };
+  $('btnAutoPausa').onclick = function(){
+    if(!client || !client.connected) return;
+    var estabaPausado = !!ultimo.pausado;
+    pedirConfirmacion(estabaPausado ? '¿Continuar el modo automático?' : '¿Pausar el modo automático?', function(){
+      client.publish(topics.cmdAccion, estabaPausado ? 'RESUME' : 'PAUSE');
+      agregarFeed('Comando: ' + (estabaPausado ? 'continuar' : 'pausar') + ' automático');
+    });
+  };
+  $('btnSalirAuto').onclick = salirDeEdicion;
+
+  // ---------- Estado, tiempo y alarmas ----------
+  function actualizarEstadoPill(recienFinalizado){
+    var pill = $('estadoPill');
+    if(!equipoEnLinea()){ pill.className = 'pill off'; pill.textContent = 'DESCONECTADA'; }
+    else if(ultimo.enAlarma){ pill.className = 'pill alarma'; pill.textContent = 'ALARMA'; }
+    else if(recienFinalizado){ pill.className = 'pill finalizo'; pill.textContent = 'FINALIZO'; }
+    else if(ultimo.estado === 'PAUSADO' || ultimo.estado === 'AUTO PAUSADO'){ pill.className = 'pill pausa'; pill.textContent = ultimo.estado; }
+    else if(ultimo.estado === 'SECANDO'){ pill.className = 'pill on'; pill.textContent = 'ENCENDIDO'; }
+    else if(ultimo.estado === 'AUTO'){ pill.className = 'pill on'; pill.textContent = 'AUTO'; }
+    else if(ultimo.estado === 'FINALIZADO' || ultimo.estado === 'CORTADO'){ pill.className = 'pill finalizo'; pill.textContent = 'FINALIZO'; }
+    else if(ultimo.ciclo){ pill.className = 'pill on'; pill.textContent = ultimo.modoAuto ? 'AUTO' : 'ENCENDIDO'; }
+    else { pill.className = 'pill off'; pill.textContent = 'APAGADO'; }
+    $('btnAlarma').className = 'btnfull alarma' + (ultimo.enAlarma ? ' activa' : '');
+  }
+
+  function actualizarBannerAlarma(){ $('modalAlarma').hidden = !ultimo.enAlarma; }
+
+  function actualizarAvisoSensores(){
+    var partes = [];
+    if(ultimo.sensorTemp) partes.push('Falla sensor de temperatura');
+    if(ultimo.sensorHum) partes.push('Falla sensor de humedad');
+    var el = $('avisoSensor');
+    el.hidden = partes.length === 0;
+    el.textContent = partes.join(' · ');
+  }
+
+  function restanteActual(){
+    if(ultimo.pausado) return ultimo.tiempo;
+    var transcurrido = Math.floor((Date.now() - ultimo.recibidoEn) / 1000);
+    return Math.max(0, ultimo.tiempo - transcurrido);
+  }
+
+  function actualizarBarra(restante){
+    var fill = $('progresoFill');
+    if(!ultimo.ciclo || ultimo.modoAuto || !ultimo.total){ fill.style.width = '0%'; fill.style.background = 'transparent'; return; }
+    var pct = Math.max(0, Math.min(100, (restante / ultimo.total) * 100));
+    fill.style.width = pct + '%';
+    fill.style.background = 'var(--temp)';
+  }
+
+  var estabaEnLinea = false, avisoOfflineDado = false;
+  function actualizarTiempo(){
+    var enLinea = equipoEnLinea();
+    if(enLinea !== estabaEnLinea){
+      estabaEnLinea = enLinea;
+      if(!enLinea && ultimo.recibido){
+        // Se perdio la secadora: no mostrar un ciclo ni una alarma que ya no se pueden confirmar
+        ultimo.ciclo = 0; ultimo.pausado = 0; ultimo.estado = ''; ultimo.enAlarma = false; ultimo.alarmaActiva = false;
+        ultimo.pantallaAlarma = 'NINGUNA';
+        ultimoCicloVisto = 0; finalizadoDesde = 0;
+        avisoOfflineDado = true;
+        agregarFeed('[AVISO] La secadora dejó de enviar datos (apagada o sin WiFi).');
+        actualizarPanelAuto(); renderAcciones();
+        $('btnParar').disabled = true;
+      } else if(enLinea && avisoOfflineDado){
+        avisoOfflineDado = false;
+        agregarFeed('La secadora volvió a enviar datos.');
+      }
+    }
+    if(!enLinea){
+      actualizarEstadoPill(false);
+      $('modalAlarma').hidden = true;
+      $('tiempoTxt').textContent = '--:--';
+      $('tiempoLabel').textContent = ultimo.recibido ? 'Secadora sin conexión' : 'Esperando a la secadora...';
+      actualizarBarra(0);
+      return;
+    }
+    var recienFinalizado = !ultimo.ciclo && finalizadoDesde && (Date.now() - finalizadoDesde < TIEMPO_FIN_A_AMBIENTE_MS);
+    actualizarEstadoPill(recienFinalizado);
+    actualizarBannerAlarma();
+    if(ultimo.ciclo && ultimo.modoAuto){
+      $('tiempoTxt').textContent = ultimo.pausado ? 'PAUSA' : 'CONTINUO';
+      $('tiempoLabel').textContent = ultimo.pausado ? 'Automático pausado' : 'Modo automático';
+      actualizarBarra(0);
+      return;
+    }
+    if(!ultimo.ciclo){
+      $('tiempoTxt').textContent = '--:--';
+      var etiqueta = 'Sin ciclo activo';
+      if(ultimo.causaParada) etiqueta = 'Secado finalizado · Motivo: ' + ultimo.causaParada;
+      else if(recienFinalizado) etiqueta = 'Secado finalizado';
+      $('tiempoLabel').textContent = etiqueta;
+      actualizarBarra(0);
+      return;
+    }
+    var restante = restanteActual();
+    $('tiempoTxt').textContent = fmtHMS(restante);
+    $('tiempoLabel').textContent = ultimo.pausado ? 'Pausado · tiempo restante' : 'Tiempo restante';
+    actualizarBarra(restante);
+  }
+  setInterval(actualizarTiempo, 1000);
+
+
+  // ---------- Pantalla del equipo (mismo diseno que el firmware) ----------
+  var pantalla = $('pantallaEquipo');
+  // Se dibuja a 4x de resolucion y se escala con suavizado: el texto y los iconos quedan nitidos
+  var ESCALA = 4;
+  if(pantalla){ pantalla.width = 160 * ESCALA; pantalla.height = 128 * ESCALA; }
+  var ctx = (pantalla && pantalla.getContext) ? pantalla.getContext('2d') : null;
+  if(ctx) ctx.setTransform(ESCALA, 0, 0, ESCALA, 0, 0);
+  var fase = {calef:0, vent:0, gota:0};
+
+  function txt(s, x, y, tam, color){
+    ctx.font = FUENTE[tam]; ctx.fillStyle = color; ctx.textBaseline = 'top';
+    ctx.fillText(s, x, y);
+  }
+  function centrado(s, y, tam, color){
+    ctx.font = FUENTE[tam];
+    var w = ctx.measureText(s).width;
+    var x = Math.max(8, 8 + (110 - w) / 2);
+    txt(s, Math.round(x), y, tam, color);
+  }
+
+  function iconoCalefactor(x0, y0, encendido){
+    var c = encendido ? COLOR.error : COLOR.gris;
+    ctx.fillStyle = c;
+    ctx.fillRect(x0 + 2, y0 + 17, 18, 2);
+    ctx.strokeStyle = c; ctx.lineWidth = 1;
+    for(var i = 0; i < 3; i++){
+      var xb = x0 + 5 + i * 6;
+      ctx.beginPath(); ctx.moveTo(xb + 0.5, y0 + 15.5);
+      for(var y = 15; y >= 1; y--){
+        var x = xb + Math.sin(fase.calef + i * 1.3 + y * 0.7) * 1.5;
+        ctx.lineTo(x + 0.5, y0 + y + 0.5);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function iconoVentilador(x0, y0, girando){
+    var c = girando ? COLOR.linea : COLOR.grisOscuro;
+    var cx = x0 + 11, cy = y0 + 11, r = 10;
+    ctx.fillStyle = c;
+    for(var k = 0; k < 3; k++){
+      var a = fase.vent + k * 2.0944;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a - 0.35) * r, cy + Math.sin(a - 0.35) * r);
+      ctx.lineTo(cx + Math.cos(a + 0.35) * r * 0.7, cy + Math.sin(a + 0.35) * r * 0.7);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = c; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = COLOR.texto;
+    ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function iconoGota(x0, y0, activa, color){
+    ctx.fillStyle = activa ? color : COLOR.gris;
+    ctx.beginPath(); ctx.moveTo(x0 + 11, y0 + 1); ctx.lineTo(x0 + 4, y0 + 14); ctx.lineTo(x0 + 18, y0 + 14); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(x0 + 11, y0 + 14, 7, 0, Math.PI * 2); ctx.fill();
+    if(activa){
+      ctx.fillStyle = COLOR.texto;
+      for(var b = 0; b < 2; b++){
+        var by = 19 - ((fase.gota + b * 4.5) % 9);
+        var bx = (b === 0) ? 8 : 13;
+        ctx.beginPath(); ctx.arc(x0 + bx, y0 + by, 1, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
+  // Causas de la alarma de condicion: "TEMP MAX", "HUM MIN" o "TEMP MAX y HUM MIN"
+  function causasAlarmaCondicion(){
+    var t = '', h = '';
+    var partes = (ultimo.causaCond || '').split(' y ');
+    for(var i = 0; i < partes.length; i++){
+      // "CORTE TEMP MAX" / "CORTE NO CALIENTA" = corte de seguridad: la pantalla de la ESP muestra solo la causa
+      var parte = partes[i].replace(/^CORTE /, '');
+      if(parte.indexOf('TEMP') === 0 || parte === 'NO CALIENTA' || parte === 'EXCESO CALOR') t = parte;
+      else if(parte.indexOf('HUM') === 0) h = parte;
+    }
+    return {temp:t, hum:h};
+  }
+
+  // Fila de tiempo principal: linea 1 = aviso o estado, linea 2 = cuenta regresiva si hay aviso
+  function filaTiempoPrincipal(){
+    var causas = causasAlarmaCondicion();
+    var hayAlerta = ultimo.ciclo && (causas.temp || causas.hum);
+    var l1;
+    if(ultimo.sensorTemp) l1 = 'FALLA SENSOR TEMP';
+    else if(ultimo.sensorHum) l1 = 'FALLA SENSOR HUM';
+    else if(hayAlerta) l1 = ('ALERTA ' + causas.temp + ' ' + causas.hum).replace(/\s+$/, '');
+    else if(ultimo.modoAuto) l1 = ultimo.pausado ? 'PAUSADO AUTO' : 'Modo: AUTO CONTINUO';
+    else if(ultimo.ciclo) l1 = (ultimo.pausado ? 'PAUSADO ' : 'Rest: ') + fmtHMS(restanteActual());
+    else if(ultimo.causaParada) l1 = 'FINALIZO SECADO';
+    else { var p = perfilDeTelemetria(); l1 = 'Tiempo: ' + formatearTiempo(p ? p.tiempo : 0); }
+
+    var l2 = '';
+    var hayAviso = ultimo.sensorTemp || ultimo.sensorHum || hayAlerta;
+    if(hayAviso){
+      if(ultimo.modoAuto) l2 = 'MODO AUTO';
+      else if(ultimo.ciclo) l2 = (ultimo.pausado ? 'PAUSADO ' : 'Rest: ') + fmtHMS(restanteActual());
+    } else if(!ultimo.ciclo && ultimo.causaParada){
+      l2 = 'Motivo: ' + ultimo.causaParada;
+    }
+    return {l1:l1, l2:l2};
+  }
+
+  function colorGotaAmbiente(){
+    if(ultimo.hum > ultimo.humSet + MARGEN_HUM_ALTA) return COLOR.alta;
+    if(ultimo.hum < ultimo.humSet - MARGEN_HUM_BAJA) return COLOR.falta;
+    return COLOR.estable;
+  }
+
+  function pintarPrincipal(){
+    var auto = ultimo.modoAuto === 1;
+    txt(auto ? 'AUTO' : (ultimo.perfilActivo || '--'), 4, 2, 2, COLOR.destacado);
+    txt(ultimo.pausado ? 'PAUSADO' : (ultimo.ciclo ? 'SECANDO' : 'LISTO'), 106, 10, 1, COLOR.destacado);
+    ctx.fillStyle = COLOR.linea; ctx.fillRect(0, 24, 160, 1);
+    txt(ultimo.sensorTemp ? 'T:ERR/' + Math.round(ultimo.tempSet) + '°C'
+                          : 'T:' + Math.round(ultimo.temp) + '/' + Math.round(ultimo.tempSet) + '°C',
+        4, 31, 2, ultimo.sensorTemp ? COLOR.error : COLOR.texto);
+    txt(ultimo.sensorHum ? 'H:ERR/' + Math.round(ultimo.humSet) + '%'
+                         : 'H:' + Math.round(ultimo.hum) + '/' + Math.round(ultimo.humSet) + '%',
+        4, 51, 2, ultimo.sensorHum ? COLOR.error : COLOR.texto);
+    iconoCalefactor(136, 30, ultimo.pwmCal > 0);
+    iconoVentilador(136, 49, ultimo.pwmVent > 0);
+    var fila = filaTiempoPrincipal();
+    txt(fila.l1, 4, 74, 1, COLOR.texto);
+    if(fila.l2) txt(fila.l2, 4, 85, 1, COLOR.texto);
+    ctx.strokeStyle = COLOR.texto; ctx.lineWidth = 1;
+    ctx.strokeRect(4.5, 98.5, 151, 11);
+    if(ultimo.ciclo && !auto && ultimo.total > 0){
+      var pct = Math.max(0, Math.min(1, restanteActual() / ultimo.total));
+      ctx.fillStyle = COLOR.error;
+      ctx.fillRect(5, 99, Math.round(150 * pct), 10);
+    }
+  }
+
+  function pintarAmbiente(){
+    txt('== AMBIENTE ==', 38, 4, 1, COLOR.texto);
+    ctx.fillStyle = COLOR.linea; ctx.fillRect(0, 16, 160, 1);
+    centrado(ultimo.sensorTemp ? 'ERR' : Math.round(ultimo.temp) + '°C', 33, 3, ultimo.sensorTemp ? COLOR.error : COLOR.texto);
+    centrado(Math.round(ultimo.hum) + ' %', 69, 3, COLOR.texto);
+    iconoCalefactor(128, 36, ultimo.pwmCal > 0);
+    // Siempre animada en ambiente: el color indica el estado de la humedad (estable / alta / falta)
+    iconoGota(128, 68, true, colorGotaAmbiente());
+  }
+
+  // ---------- Pantallas de alarma (espejo de SecaFil_6.cpp) ----------
+  function centrarTexto(s, y, tam, color){
+    ctx.font = FUENTE[tam];
+    var w = ctx.measureText(s).width;
+    txt(s, Math.round((160 - w) / 2), y, tam, color);
+  }
+  // El titulo es lo unico que parpadea: cambia cada 250 ms
+  function tituloVisible(){ return Math.floor(Date.now() / 250) % 2 === 0; }
+
+  function pintarAlarmaCondicion(){
+    ctx.fillStyle = COLOR.error; ctx.fillRect(0, 0, 160, 128);
+    centrarTexto('ALERTA', 18, 2, tituloVisible() ? COLOR.destacado : COLOR.error);
+
+    var causas = causasAlarmaCondicion();
+    // Con dos causas, la que se muestra alterna cada 2 s
+    var mostrarTemp = causas.temp && (!causas.hum || (Math.floor(Date.now() / 2000) % 2 === 0));
+    var causa = mostrarTemp ? causas.temp : causas.hum;
+    if(causa){
+      var tam = (causa.length * 12 <= 160) ? 2 : 1;
+      centrarTexto(causa, 42 + Math.floor((16 - 8 * tam) / 2), tam, COLOR.texto);
+    }
+
+    var valores = 'T:' + Math.round(ultimo.temp) + '/' + Math.round(ultimo.tempSet) + '°C H:' +
+                  Math.round(ultimo.hum) + '/' + Math.round(ultimo.humSet) + '%';
+    centrarTexto(valores, 65, 1, COLOR.texto);
+
+    var tiempoTxt = '';
+    if(ultimo.ciclo){
+      if(ultimo.modoAuto) tiempoTxt = 'MODO AUTO';
+      else if(restanteActual() > 0) tiempoTxt = 'Rest: ' + fmtHMS(restanteActual());
+    }
+    if(tiempoTxt) centrarTexto(tiempoTxt, 87, 1, COLOR.texto);
+  }
+
+  function pintarAlarmaSensor(){
+    ctx.fillStyle = COLOR.error; ctx.fillRect(0, 0, 160, 128);
+    centrarTexto('FALLA SENSOR', 18, 2, tituloVisible() ? COLOR.destacado : COLOR.error);
+    var causaSensor = ultimo.causaCond || '';
+    var fallaT = causaSensor.indexOf('TEMP') !== -1 || (!causaSensor && (ultimo.sensorTemp || ultimo.sensorNtc));
+    var fallaH = causaSensor.indexOf('HUM') !== -1 || (!causaSensor && ultimo.sensorHum);
+    if(fallaT && fallaH){
+      centrarTexto('TEMPERATURA', 44, 2, COLOR.texto);
+      centrarTexto('HUMEDAD', 66, 2, COLOR.texto);
+    } else if(fallaT){
+      centrarTexto('TEMPERATURA', 52, 2, COLOR.texto);
+    } else {
+      centrarTexto('HUMEDAD', 52, 2, COLOR.texto);
+    }
+    centrarTexto('Revisar el sensor', 90, 1, COLOR.destacado);
+    centrarTexto('Pulse para silenciar', 108, 1, COLOR.texto);
+  }
+
+  function pintarAlarmaFin(){
+    var alterna = Math.floor(Date.now() / 180) % 2 === 0;
+    ctx.fillStyle = alterna ? COLOR.error : COLOR.fondo; ctx.fillRect(0, 0, 160, 128);
+    txt('SECADO', 44, 40, 2, COLOR.destacado);
+    txt('LISTO!', 44, 62, 2, COLOR.destacado);
+    txt('FIN DE TIEMPO', 40, 84, 1, COLOR.texto);
+    txt('Presione el boton', 29, 100, 1, COLOR.texto);
+    txt('para continuar', 38, 112, 1, COLOR.texto);
+  }
+
+  function pintarPantalla(){
+    if(!ctx) return;
+    ctx.fillStyle = COLOR.fondo;
+    ctx.fillRect(0, 0, 160, 128);
+    var nota = $('pantallaNota');
+    if(!equipoEnLinea()){
+      // Sin datos en vivo no se dibuja nada de la pantalla del equipo
+      if(nota) nota.textContent = ultimo.recibido ? 'Equipo desconectado: no hay datos en vivo.' : 'Esperando a la secadora...';
+      return;
+    }
+    if(nota) nota.textContent = '';
+    if(!ultimo.recibido){
+      txt('SIN DATOS', 40, 56, 2, COLOR.gris);
+      return;
+    }
+    if(ultimo.pantallaAlarma === 'CONDICION') return pintarAlarmaCondicion();
+    if(ultimo.pantallaAlarma === 'SENSOR') return pintarAlarmaSensor();
+    if(ultimo.pantallaAlarma === 'FIN') return pintarAlarmaFin();
+    if(ultimo.vistaAmb === 1) pintarAmbiente(); else pintarPrincipal();
+  }
+
+  function animarPantalla(){
+    var dt = 0.04;
+    if(ultimo.pwmCal > 0){
+      fase.calef += (5 + (ultimo.pwmCal / 255) * 10) * dt;
+      if(fase.calef > Math.PI * 2) fase.calef -= Math.PI * 2;
+    }
+    if(ultimo.pwmVent > 0){
+      fase.vent += (ultimo.pwmVent / 255) * 900 * (Math.PI / 180) * dt;
+      if(fase.vent > Math.PI * 2) fase.vent -= Math.PI * 2;
+    }
+    fase.gota = (fase.gota + 12 * dt) % 9;
+    pintarPantalla();
+  }
+  setInterval(animarPantalla, 40);
+
+  // ---------- Sonido de alarmas (mismos tiempos que el firmware) ----------
+  // Cambiar estos valores modifica el sonido de la web; el firmware usa las
+  // constantes ALARMA_* de SecaFil_6.cpp y deben quedar iguales.
+  var ALARMA_SONIDO = {frecuenciaHz:2700, pitidos:3, pitidoOnMs:450, periodoMs:700, repeticionMs:10000, volumen:0.9};
+  // Los pitidos se programan por adelantado en el reloj de audio del navegador:
+  // siguen sonando aunque la pestana quede en segundo plano y el navegador frene los temporizadores.
+  var HORIZONTE_AUDIO_S = 60;
+  var audioCtx = null, audioOsc = null, audioGan = null;
+  var alarmaSonandoWeb = false, proximaRafagaCtx = 0, silenciadoLocalHasta = 0;
+
+  // El navegador exige un toque en la pagina antes de permitir sonido
+  function prepararAudio(){
+    if(audioCtx){ if(audioCtx.state === 'suspended') audioCtx.resume(); return; }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    audioCtx = new AC();
+    audioOsc = audioCtx.createOscillator();
+    audioOsc.type = 'square';
+    audioOsc.frequency.value = ALARMA_SONIDO.frecuenciaHz;
+    audioGan = audioCtx.createGain();
+    audioGan.gain.value = 0;
+    audioOsc.connect(audioGan); audioGan.connect(audioCtx.destination);
+    audioOsc.start();
+  }
+  ['pointerdown', 'touchend', 'click', 'keydown'].forEach(function(ev){ document.addEventListener(ev, prepararAudio, true); });
+  function audioHabilitado(){ return !!(audioCtx && audioCtx.state === 'running'); }
+
+  function programarRafagas(){
+    var g = audioGan.gain, ahora = audioCtx.currentTime;
+    if(proximaRafagaCtx < ahora) proximaRafagaCtx = ahora + 0.05;
+    while(proximaRafagaCtx < ahora + HORIZONTE_AUDIO_S){
+      for(var i = 0; i < ALARMA_SONIDO.pitidos; i++){
+        var t0 = proximaRafagaCtx + i * ALARMA_SONIDO.periodoMs / 1000;
+        g.setValueAtTime(ALARMA_SONIDO.volumen, t0);
+        g.setValueAtTime(0, t0 + ALARMA_SONIDO.pitidoOnMs / 1000);
+      }
+      proximaRafagaCtx += ALARMA_SONIDO.repeticionMs / 1000;
+    }
+  }
+  function silenciarSonido(){
+    alarmaSonandoWeb = false;
+    proximaRafagaCtx = 0;
+    if(!audioGan) return;
+    audioGan.gain.cancelScheduledValues(audioCtx.currentTime);
+    audioGan.gain.setValueAtTime(0, audioCtx.currentTime);
+  }
+  function reiniciarRafagaWeb(){ silenciarSonido(); ultimaVibracion = 0; }   // la rafaga nueva empieza enseguida
+
+  // En el celular tambien vibra con cada rafaga (Android; iPhone no permite vibrar desde la web)
+  var ultimaVibracion = 0;
+  function vibrarRafaga(){
+    if(!navigator.vibrate || Date.now() - ultimaVibracion < ALARMA_SONIDO.repeticionMs) return;
+    ultimaVibracion = Date.now();
+    var patron = [];
+    for(var i = 0; i < ALARMA_SONIDO.pitidos; i++){
+      patron.push(ALARMA_SONIDO.pitidoOnMs);
+      if(i < ALARMA_SONIDO.pitidos - 1) patron.push(ALARMA_SONIDO.periodoMs - ALARMA_SONIDO.pitidoOnMs);
+    }
+    try { navigator.vibrate(patron); } catch(e){}
+  }
+
+  // Igual que sonarRafagaAlarma() del firmware: 3 pitidos cada 10 s hasta silenciar o resolver la alarma (todas las alarmas)
+  function sonarAlarmasWeb(){
+    var p = ultimo.pantallaAlarma;
+    var activa = (p === 'CONDICION' || p === 'SENSOR' || p === 'FIN') && equipoEnLinea() && Date.now() >= silenciadoLocalHasta;
+    if(!activa){ if(alarmaSonandoWeb){ silenciarSonido(); try { if(navigator.vibrate) navigator.vibrate(0); } catch(e){} } ultimaVibracion = 0; return; }
+    vibrarRafaga();
+    if(!audioGan) return;
+    if(audioCtx.state !== 'running') audioCtx.resume();
+    alarmaSonandoWeb = true;
+    programarRafagas();
+  }
+  setInterval(function(){
+    var aviso = $('avisoSonido');
+    if(aviso) aviso.hidden = !ultimo.enAlarma || audioHabilitado();
+  }, 500);
+  setInterval(sonarAlarmasWeb, 250);
+
+  // Mientras hay un secado o una alarma, la pantalla no se apaga (si la pagina esta abierta y visible)
+  var wakeLock = null, pidiendoWakeLock = false;
+  function gestionarWakeLock(){
+    if(!('wakeLock' in navigator)) return;
+    var quiero = (ultimo.ciclo === 1 || ultimo.enAlarma) && equipoEnLinea() && document.visibilityState === 'visible';
+    if(quiero && !wakeLock && !pidiendoWakeLock){
+      pidiendoWakeLock = true;
+      navigator.wakeLock.request('screen').then(function(l){
+        wakeLock = l; pidiendoWakeLock = false;
+        l.addEventListener('release', function(){ wakeLock = null; });
+      }).catch(function(){ pidiendoWakeLock = false; });
+    } else if(!quiero && wakeLock){
+      wakeLock.release().catch(function(){}); wakeLock = null;
+    }
+  }
+  setInterval(gestionarWakeLock, 2000);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible'){
+      if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      gestionarWakeLock();
+    }
+  });
+
+  // ---------- Configuracion de conexion ----------
+  function abrirConfig(){
+    $('cfgHost').value = cfg.host || '';
+    $('cfgDev').value = cfg.dev || '1';
+    $('cfgPort').value = cfg.port || 8884;
+    $('cfgUser').value = cfg.user || '';
+    $('cfgPass').value = cfg.pass || '';
+    $('modalConfig').hidden = false;
+  }
+  $('btnConfig').onclick = abrirConfig;
+  $('btnCerrarCfg').onclick = function(){ $('modalConfig').hidden = true; };
+  $('btnGuardarCfg').onclick = function(){
+    cfg = {
+      host: $('cfgHost').value.trim(),
+      dev: $('cfgDev').value.trim() || '1',
+      port: parseInt($('cfgPort').value, 10) || 8884,
+      user: $('cfgUser').value.trim(),
+      pass: $('cfgPass').value.trim()
+    };
+    guardarConfigLS(cfg);
+    $('modalConfig').hidden = true;
+    perfilesCache = cargarPerfilesCache();
+    if(perfilesCache) perfiles = perfilesCache;
+    conectar();
+  };
+
+  function silenciarAlarma(){
+    silenciadoLocalHasta = Date.now() + 4000;
+    silenciarSonido();
+    if(client && client.connected){ client.publish(topics.cmdSilenciar, 'SILENCIAR'); agregarFeed('Comando: silenciar alarma'); }
+  }
+  $('btnAlarma').onclick = silenciarAlarma;
+  $('btnSilenciarAlarmaModal').onclick = silenciarAlarma;
+  $('btnParar').onclick = function(){
+    if(!ultimo.ciclo){ agregarFeed('No hay secado en curso'); return; }
+    pedirConfirmacion('¿Detener el secado en curso?', function(){
+      if(client && client.connected){ client.publish(topics.cmdAccion, 'STOP'); agregarFeed('Comando: parar'); }
+    });
+  };
+
+  iniciarControlesAuto();
+  agregarFeed('Página versión ' + (window.SECAFIL_WEB_VERSION || '?') + ' (tocá la pantalla para habilitar el sonido)');
+  actualizarTiempo();
+  pintarPantalla();
+  if(cfg.user){ conectar(); } else { setConn('bad', 'Sin configurar'); abrirConfig(); }
+})();
+</script>
+
+</body>
+</html>
