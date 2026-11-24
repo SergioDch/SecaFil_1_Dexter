@@ -556,10 +556,19 @@
       if(Array.isArray(lista) && lista.length === 6){
         perfiles = lista;
         guardarPerfilesCache(lista);
-        if(editandoCampo) renderEditor();
+        // Si el usuario esta escribiendo en el editor, redibujar recien al salir del campo
+        if(editandoCampo){
+          if(hayEdicionEnCurso()) perfilesPendientes = true; else renderEditor();
+        }
       }
     } catch(e){}
   }
+  var perfilesPendientes = false;
+  $('editorPerfil').addEventListener('focusout', function(){
+    setTimeout(function(){
+      if(perfilesPendientes && editandoCampo && !hayEdicionEnCurso()){ perfilesPendientes = false; renderEditor(); }
+    }, 300);
+  });
 
   function perfilDeTelemetria(){
     var idx = NOMBRES.indexOf(ultimo.perfilActivo);
@@ -650,10 +659,13 @@
   function parsearTiempo(texto){
     var s = String(texto).replace(',', '.').trim();
     if(/^\d+(\.\d+)?$/.test(s)) return parseFloat(s);
-    var re = /(\d+(?:\.\d+)?)\s*(horas?|hs?|h|min|m|seg|s)?/gi, total = 0, hay = false, m;
+    var re = /(\d+(?:\.\d+)?)\s*(horas?|hs?|h|minutos?|min|m|segundos?|seg|s)?/gi, total = 0, hay = false, m, ultimaUnidad = '';
     while((m = re.exec(s))){
       hay = true;
-      var n = parseFloat(m[1]), u = (m[2] || 's').toLowerCase();
+      // Numero sin unidad despues de horas = minutos; despues de minutos = segundos
+      var n = parseFloat(m[1]), u = (m[2] || (ultimaUnidad === 'h' ? 'min' : 's')).toLowerCase();
+      if(u.indexOf('min') === 0) u = 'min';
+      ultimaUnidad = u[0] === 'h' ? 'h' : u;
       if(u[0] === 'h') total += n * 3600;
       else if(u === 'min' || u === 'm') total += n * 60;
       else total += n;
@@ -771,7 +783,9 @@
         '<span class="nombre">' + c.nombre + '</span>' +
         '<div class="stepper">' +
           '<button type="button" data-dir="-1">&minus;</button>' +
-          '<input class="mono' + (c.tipo === 'tiempo' ? ' tiempo' : '') + '" type="text" inputmode="decimal">' +
+          (c.tipo === 'tiempo'
+            ? '<input class="mono tiempo" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ej: 4h, 10m, 1h 30m">'
+            : '<input class="mono" type="text" inputmode="decimal">') +
           '<button type="button" data-dir="1">+</button>' +
           (c.unidad ? '<span class="unidad">' + c.unidad + '</span>' : '') +
         '</div>';
